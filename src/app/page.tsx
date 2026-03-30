@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, differenceInDays } from "date-fns";
-import { Scale, Utensils, Dumbbell, TrendingUp, TrendingDown } from "lucide-react";
+import { format, differenceInDays, startOfWeek, isAfter } from "date-fns";
+import {
+  Scale,
+  Utensils,
+  Dumbbell,
+  TrendingUp,
+  TrendingDown,
+  Flame,
+} from "lucide-react";
 import Link from "next/link";
 import { getMetrics, getCalories, getWorkouts, getSettings } from "@/lib/storage";
 import WaterTracker from "@/components/WaterTracker";
@@ -22,13 +29,18 @@ export default function Dashboard() {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <div className="h-screen flex items-center justify-center text-slate-500">Loading...</div>;
+    return (
+      <div className="h-screen flex items-center justify-center text-slate-500">
+        Loading...
+      </div>
+    );
   }
 
   const metrics = getMetrics();
   const lastWeight = metrics[0];
   const prevWeight = metrics[1];
-  const weightDiff = lastWeight && prevWeight ? lastWeight.weight - prevWeight.weight : 0;
+  const weightDiff =
+    lastWeight && prevWeight ? lastWeight.weight - prevWeight.weight : 0;
   const calories = getCalories(today);
   const settings = getSettings();
   const workouts = getWorkouts();
@@ -36,6 +48,11 @@ export default function Dashboard() {
   const lastWorkoutDays = lastWorkout
     ? differenceInDays(new Date(), new Date(lastWorkout.date))
     : null;
+
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const workoutsThisWeek = workouts.filter((w) =>
+    isAfter(new Date(w.date), weekStart)
+  ).length;
 
   return (
     <div className="space-y-4">
@@ -67,7 +84,9 @@ export default function Dashboard() {
                   ) : (
                     <TrendingDown size={14} />
                   )}
-                  <span className="ml-0.5">{Math.abs(weightDiff).toFixed(1)}</span>
+                  <span className="ml-0.5">
+                    {Math.abs(weightDiff).toFixed(1)}
+                  </span>
                 </span>
               )}
             </div>
@@ -84,13 +103,18 @@ export default function Dashboard() {
           <p className="text-xs text-slate-400 font-medium mb-1">Calories</p>
           <div className="flex items-end gap-1.5">
             <span className="text-2xl font-bold">{calories}</span>
-            <span className="text-xs text-slate-400 mb-1">/ {settings.calorieTarget}</span>
+            <span className="text-xs text-slate-400 mb-1">
+              / {settings.calorieTarget}
+            </span>
           </div>
           <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-teal-500 rounded-full transition-all duration-500"
               style={{
-                width: `${Math.min((calories / settings.calorieTarget) * 100, 100)}%`,
+                width: `${Math.min(
+                  (calories / settings.calorieTarget) * 100,
+                  100
+                )}%`,
               }}
             />
           </div>
@@ -109,11 +133,34 @@ export default function Dashboard() {
                   ? "Yesterday"
                   : `${lastWorkoutDays} days ago`}
               </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {lastWorkout.exercises.length} exercise
+                {lastWorkout.exercises.length !== 1 && "s"} · {lastWorkout.duration}m
+              </p>
             </>
           ) : (
             <p className="text-sm text-slate-500">No workouts yet</p>
           )}
         </div>
+      </div>
+
+      {/* Workouts this week */}
+      <div className="bg-slate-800 rounded-2xl px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-teal-600/20 rounded-lg">
+            <Flame size={18} className="text-teal-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">{workoutsThisWeek} workout{workoutsThisWeek !== 1 && "s"} this week</p>
+            <p className="text-xs text-slate-400">Keep it up!</p>
+          </div>
+        </div>
+        <Link
+          href="/workouts"
+          className="text-xs text-teal-400 hover:text-teal-300 font-medium transition"
+        >
+          View all
+        </Link>
       </div>
 
       {/* Quick Actions */}
