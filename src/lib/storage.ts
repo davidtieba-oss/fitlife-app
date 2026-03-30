@@ -330,3 +330,39 @@ export function getSuggestedCalories(base: number, goal: WeightGoal): number {
   if (goal === "gain") return base + 300;
   return base;
 }
+
+// Progress Photos
+export interface ProgressPhoto {
+  id: string;
+  date: string;
+  dataUrl: string;
+  label?: string;
+}
+
+export function getProgressPhotos(): ProgressPhoto[] {
+  return getItem<ProgressPhoto[]>("progress_photos", []);
+}
+
+export function saveProgressPhoto(entry: Omit<ProgressPhoto, "id">): ProgressPhoto | null {
+  try {
+    const photos = getProgressPhotos();
+    const newPhoto: ProgressPhoto = { ...entry, id: crypto.randomUUID() };
+    photos.push(newPhoto);
+    photos.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setItem("progress_photos", photos);
+    return newPhoto;
+  } catch {
+    return null;
+  }
+}
+
+export function deleteProgressPhoto(id: string): void {
+  const photos = getProgressPhotos().filter((p) => p.id !== id);
+  setItem("progress_photos", photos);
+}
+
+export function getPhotoStorageSize(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = localStorage.getItem(key("progress_photos"));
+  return raw ? raw.length * 2 : 0;
+}
