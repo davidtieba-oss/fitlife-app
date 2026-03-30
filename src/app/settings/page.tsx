@@ -16,11 +16,14 @@ import {
   PROFILE_COLORS,
   getAiSettings,
   saveAiSettings,
-  AI_MODELS,
+  AI_MODELS_FALLBACK,
+  getCachedModels,
+  saveCachedModels,
   type UserSettings,
   type WeightGoal,
   type Profile,
   type AiSettings,
+  type AiModelInfo,
 } from "@/lib/storage";
 import { askAI } from "@/lib/ai";
 import { useProfile } from "@/lib/ProfileContext";
@@ -38,6 +41,7 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  RefreshCw,
 } from "lucide-react";
 
 const GOAL_OPTIONS: { value: WeightGoal; label: string; desc: string }[] = [
@@ -72,15 +76,63 @@ export default function SettingsPage() {
   const importRef = useRef<HTMLInputElement>(null);
 
   // AI settings state
-  const [aiSettings, setAiSettingsState] = useState<AiSettings>({ apiKey: "", model: "claude-sonnet-4-20250514" });
+  const [aiSettings, setAiSettingsState] = useState<AiSettings>({ apiKey: "", model: "claude-sonnet-4-6" });
   const [aiTestStatus, setAiTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [aiTestError, setAiTestError] = useState("");
+  const [aiModels, setAiModels] = useState<AiModelInfo[]>(AI_MODELS_FALLBACK);
+  const [modelsLoading, setModelsLoading] = useState(false);
+
+  async function fetchModels(apiKey: string) {
+    setModelsLoading(true);
+    try {
+      const headers: Record<string, string> = {};
+      if (apiKey) headers["x-api-key"] = apiKey;
+      const res = await fetch("/api/models", { headers });
+      if (!res.ok) throw new Error("Failed to fetch models");
+      const data = await res.json();
+      const allModels: Array<{ id: string; display_name?: string; capabilities?: { image_input?: boolean } }> =
+        data.data ?? data;
+      // Filter to image-capable models, map to our format
+      const imageCapable = allModels.filter(
+        (m) => m.capabilities?.image_input !== false
+      );
+      // Determine sort order: haiku < sonnet < opus, then by id
+      function sortKey(id: string): number {
+        if (id.includes("haiku")) return 0;
+        if (id.includes("sonnet")) return 1;
+        if (id.includes("opus")) return 2;
+        return 3;
+      }
+      imageCapable.sort((a, b) => sortKey(a.id) - sortKey(b.id) || a.id.localeCompare(b.id));
+      const mapped: AiModelInfo[] = imageCapable.map((m) => {
+        const name = m.display_name || m.id;
+        let costNote = "";
+        if (m.id.includes("haiku")) costNote = "~$0.001/req";
+        else if (m.id.includes("sonnet")) costNote = "~$0.01/req";
+        else if (m.id.includes("opus")) costNote = "~$0.05/req";
+        return { id: m.id, name, desc: m.id, costNote };
+      });
+      if (mapped.length > 0) {
+        setAiModels(mapped);
+        saveCachedModels(mapped);
+      }
+    } catch {
+      // Fall back to hardcoded list (already set)
+    } finally {
+      setModelsLoading(false);
+    }
+  }
 
   useEffect(() => {
     setMounted(true);
     setSettings(getSettings());
     setProfiles(getProfiles());
     setAiSettingsState(getAiSettings());
+    // Load cached models or fallback
+    const cached = getCachedModels();
+    if (cached && cached.length > 0) {
+      setAiModels(cached);
+    }
   }, [activeId]);
 
   if (!mounted) {
@@ -626,11 +678,20 @@ export default function SettingsPage() {
 
         {/* Model Selector */}
         <div>
-          <label className="text-xs text-slate-400 font-medium mb-2 block">
-            Model
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-slate-400 font-medium">Model</label>
+            <button
+              type="button"
+              onClick={() => fetchModels(aiSettings.apiKey)}
+              disabled={modelsLoading}
+              className="flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50 transition"
+            >
+              <RefreshCw size={10} className={modelsLoading ? "animate-spin" : ""} />
+              {modelsLoading ? "Loading..." : "Refresh Models"}
+            </button>
+          </div>
           <div className="space-y-1.5">
-            {AI_MODELS.map((m) => (
+            {aiModels.map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -643,13 +704,15 @@ export default function SettingsPage() {
                     : "bg-slate-700 border border-transparent"
                 }`}
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-white">{m.name}</p>
-                  <p className="text-[10px] text-slate-400">{m.desc}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{m.desc}</p>
                 </div>
-                <span className="text-[10px] text-slate-500 shrink-0 ml-2">
-                  {m.costNote}
-                </span>
+                {m.costNote && (
+                  <span className="text-[10px] text-slate-500 shrink-0 ml-2">
+                    {m.costNote}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -661,6 +724,8 @@ export default function SettingsPage() {
             onClick={() => {
               saveAiSettings(aiSettings);
               setToast("AI settings saved!");
+              // Auto-fetch models when key is saved
+              if (aiSettings.apiKey) fetchModels(aiSettings.apiKey);
             }}
             className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
           >

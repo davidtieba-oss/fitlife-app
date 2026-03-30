@@ -534,13 +534,20 @@ export interface AiSettings {
   model: string;
 }
 
-export const AI_MODELS = [
-  { id: "claude-sonnet-4-20250514", name: "Sonnet 4", desc: "Fast & affordable — recommended", costNote: "~$0.01/request" },
-  { id: "claude-opus-4-20250514", name: "Opus 4", desc: "Most capable — slower", costNote: "~$0.10/request" },
-  { id: "claude-haiku-3-5-20241022", name: "Haiku 3.5", desc: "Fastest & cheapest", costNote: "~$0.002/request" },
-] as const;
+export interface AiModelInfo {
+  id: string;
+  name: string;
+  desc: string;
+  costNote: string;
+}
 
-const DEFAULT_AI_SETTINGS: AiSettings = { apiKey: "", model: "claude-sonnet-4-20250514" };
+export const AI_MODELS_FALLBACK: AiModelInfo[] = [
+  { id: "claude-haiku-4-5-20251001", name: "Haiku 4.5", desc: "Fastest & cheapest", costNote: "~$0.001/request" },
+  { id: "claude-sonnet-4-6", name: "Sonnet 4.6", desc: "Fast & smart — recommended", costNote: "~$0.01/request" },
+  { id: "claude-opus-4-6", name: "Opus 4.6", desc: "Most capable", costNote: "~$0.05/request" },
+];
+
+const DEFAULT_AI_SETTINGS: AiSettings = { apiKey: "", model: "claude-sonnet-4-6" };
 
 export function getAiSettings(): AiSettings {
   return { ...DEFAULT_AI_SETTINGS, ...globalGet<Partial<AiSettings>>("fitlife_ai_settings", {}) };
@@ -548,6 +555,25 @@ export function getAiSettings(): AiSettings {
 
 export function saveAiSettings(settings: AiSettings): void {
   globalSet("fitlife_ai_settings", settings);
+}
+
+// --- Cached Model List ---
+interface CachedModels {
+  models: AiModelInfo[];
+  fetchedAt: number;
+}
+
+const MODEL_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+export function getCachedModels(): AiModelInfo[] | null {
+  const cached = globalGet<CachedModels | null>("fitlife_models_cache", null);
+  if (!cached) return null;
+  if (Date.now() - cached.fetchedAt > MODEL_CACHE_TTL) return null;
+  return cached.models;
+}
+
+export function saveCachedModels(models: AiModelInfo[]): void {
+  globalSet<CachedModels>("fitlife_models_cache", { models, fetchedAt: Date.now() });
 }
 
 // --- Coach Chat History (profile-scoped) ---

@@ -25,7 +25,8 @@ import {
   getChatHistory,
   saveChatHistory,
   clearChatHistory,
-  AI_MODELS,
+  AI_MODELS_FALLBACK,
+  getCachedModels,
   type ChatMessage,
 } from "@/lib/storage";
 
@@ -70,7 +71,8 @@ export default function CoachPage() {
 
   const aiSettings = getAiSettings();
   const hasKey = !!aiSettings.apiKey || !!process.env.NEXT_PUBLIC_HAS_API_KEY;
-  const modelName = AI_MODELS.find((m) => m.id === aiSettings.model)?.name ?? "Sonnet 4";
+  const models = getCachedModels() ?? AI_MODELS_FALLBACK;
+  const modelName = models.find((m) => m.id === aiSettings.model)?.name ?? aiSettings.model;
 
   // No API key configured
   if (!hasKey) {
