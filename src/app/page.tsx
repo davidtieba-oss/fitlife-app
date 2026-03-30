@@ -11,7 +11,13 @@ import {
   Flame,
 } from "lucide-react";
 import Link from "next/link";
-import { getMetrics, getCalories, getWorkouts, getSettings } from "@/lib/storage";
+import {
+  getMetrics,
+  getDailyMacros,
+  getWorkouts,
+  getSettings,
+  getMacroTargets,
+} from "@/lib/storage";
 import WaterTracker from "@/components/WaterTracker";
 import WeightChart from "@/components/WeightChart";
 
@@ -41,8 +47,9 @@ export default function Dashboard() {
   const prevWeight = metrics[1];
   const weightDiff =
     lastWeight && prevWeight ? lastWeight.weight - prevWeight.weight : 0;
-  const calories = getCalories(today);
   const settings = getSettings();
+  const macroTargets = getMacroTargets(settings);
+  const dailyMacros = getDailyMacros(today);
   const workouts = getWorkouts();
   const lastWorkout = workouts[0];
   const lastWorkoutDays = lastWorkout
@@ -53,6 +60,16 @@ export default function Dashboard() {
   const workoutsThisWeek = workouts.filter((w) =>
     isAfter(new Date(w.date), weekStart)
   ).length;
+
+  const calPct = settings.calorieTarget > 0
+    ? Math.min(dailyMacros.calories / settings.calorieTarget, 1)
+    : 0;
+  const calBarColor =
+    dailyMacros.calories > settings.calorieTarget
+      ? "bg-red-500"
+      : dailyMacros.calories > settings.calorieTarget * 0.85
+      ? "bg-yellow-500"
+      : "bg-teal-500";
 
   return (
     <div className="space-y-4">
@@ -98,69 +115,103 @@ export default function Dashboard() {
         {/* Water */}
         <WaterTracker />
 
-        {/* Calories */}
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-xs text-slate-400 font-medium mb-1">Calories</p>
-          <div className="flex items-end gap-1.5">
-            <span className="text-2xl font-bold">{calories}</span>
-            <span className="text-xs text-slate-400 mb-1">
-              / {settings.calorieTarget}
-            </span>
+        {/* Nutrition */}
+        <div className="bg-slate-800 rounded-2xl p-4 col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-slate-400 font-medium">Nutrition Today</p>
+            {dailyMacros.calories === 0 && (
+              <Link
+                href="/log"
+                className="text-[10px] text-teal-400 hover:text-teal-300 font-medium"
+              >
+                + Log meal
+              </Link>
+            )}
           </div>
-          <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-teal-500 rounded-full transition-all duration-500"
-              style={{
-                width: `${Math.min(
-                  (calories / settings.calorieTarget) * 100,
-                  100
-                )}%`,
-              }}
-            />
-          </div>
+          {dailyMacros.calories === 0 ? (
+            <Link href="/log" className="block">
+              <p className="text-sm text-slate-500">
+                No meals logged yet — tap to add
+              </p>
+            </Link>
+          ) : (
+            <>
+              <div className="flex items-end gap-1.5 mb-1.5">
+                <span className="text-2xl font-bold">
+                  {dailyMacros.calories}
+                </span>
+                <span className="text-xs text-slate-400 mb-1">
+                  / {settings.calorieTarget} cal
+                </span>
+              </div>
+              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mb-3">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${calBarColor}`}
+                  style={{ width: `${calPct * 100}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <MacroRing
+                  label="Protein"
+                  value={dailyMacros.protein}
+                  target={macroTargets.protein}
+                  color="#0d9488"
+                />
+                <MacroRing
+                  label="Carbs"
+                  value={dailyMacros.carbs}
+                  target={macroTargets.carbs}
+                  color="#06b6d4"
+                />
+                <MacroRing
+                  label="Fat"
+                  value={dailyMacros.fat}
+                  target={macroTargets.fat}
+                  color="#f59e0b"
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Last Workout */}
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-xs text-slate-400 font-medium mb-1">Last Workout</p>
-          {lastWorkout ? (
-            <>
-              <p className="text-sm font-semibold truncate">{lastWorkout.name}</p>
-              <p className="text-xs text-slate-400">
-                {lastWorkoutDays === 0
-                  ? "Today"
-                  : lastWorkoutDays === 1
-                  ? "Yesterday"
-                  : `${lastWorkoutDays} days ago`}
+        <div className="bg-slate-800 rounded-2xl p-4 col-span-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-400 font-medium mb-1">
+                Last Workout
               </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {lastWorkout.exercises.length} exercise
-                {lastWorkout.exercises.length !== 1 && "s"} · {lastWorkout.duration}m
-              </p>
-            </>
-          ) : (
-            <p className="text-sm text-slate-500">No workouts yet</p>
-          )}
-        </div>
-      </div>
-
-      {/* Workouts this week */}
-      <div className="bg-slate-800 rounded-2xl px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-teal-600/20 rounded-lg">
-            <Flame size={18} className="text-teal-400" />
+              {lastWorkout ? (
+                <>
+                  <p className="text-sm font-semibold truncate">
+                    {lastWorkout.name}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {lastWorkoutDays === 0
+                      ? "Today"
+                      : lastWorkoutDays === 1
+                      ? "Yesterday"
+                      : `${lastWorkoutDays} days ago`}{" "}
+                    · {lastWorkout.exercises.length} exercise
+                    {lastWorkout.exercises.length !== 1 && "s"} ·{" "}
+                    {lastWorkout.duration}m
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-500">No workouts yet</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 bg-teal-600/20 rounded-lg px-3 py-2">
+              <Flame size={16} className="text-teal-400" />
+              <div className="text-right">
+                <p className="text-sm font-bold text-teal-300">
+                  {workoutsThisWeek}
+                </p>
+                <p className="text-[9px] text-slate-400">this week</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold">{workoutsThisWeek} workout{workoutsThisWeek !== 1 && "s"} this week</p>
-            <p className="text-xs text-slate-400">Keep it up!</p>
-          </div>
         </div>
-        <Link
-          href="/workouts"
-          className="text-xs text-teal-400 hover:text-teal-300 font-medium transition"
-        >
-          View all
-        </Link>
       </div>
 
       {/* Quick Actions */}
@@ -187,6 +238,61 @@ export default function Dashboard() {
 
       {/* Weight Chart */}
       <WeightChart />
+    </div>
+  );
+}
+
+function MacroRing({
+  label,
+  value,
+  target,
+  color,
+}: {
+  label: string;
+  value: number;
+  target: number;
+  color: string;
+}) {
+  const pct = target > 0 ? Math.min(value / target, 1) : 0;
+  const circumference = 2 * Math.PI * 20;
+  const offset = circumference * (1 - pct);
+  const statusColor =
+    value > target ? "#ef4444" : value > target * 0.85 ? "#eab308" : color;
+  const pctLabel = target > 0 ? Math.round((value / target) * 100) : 0;
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-12 h-12 mb-1">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
+          <circle
+            cx="24"
+            cy="24"
+            r="20"
+            fill="none"
+            stroke="#334155"
+            strokeWidth="3.5"
+          />
+          <circle
+            cx="24"
+            cy="24"
+            r="20"
+            fill="none"
+            stroke={statusColor}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            className="transition-all duration-500"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[10px] font-bold text-white">{pctLabel}%</span>
+        </div>
+      </div>
+      <span className="text-[10px] text-slate-300 font-medium">{label}</span>
+      <span className="text-[9px] text-slate-500">
+        {value}g / {target}g
+      </span>
     </div>
   );
 }

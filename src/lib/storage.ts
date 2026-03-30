@@ -18,6 +18,26 @@ export interface CalorieEntry {
   calories: number;
 }
 
+export type MealType = "Breakfast" | "Lunch" | "Dinner" | "Snack";
+
+export interface MealEntry {
+  id: string;
+  date: string;
+  mealType: MealType;
+  foodName: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface DailyMacros {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 export interface WorkoutSet {
   reps: number;
   weight: number;
@@ -45,10 +65,16 @@ export interface WorkoutTemplate {
   isBuiltIn: boolean;
 }
 
+export type WeightGoal = "lose" | "maintain" | "gain";
+
 export interface UserSettings {
   waterGoal: number;
   calorieTarget: number;
   name: string;
+  proteinPct: number;
+  carbsPct: number;
+  fatPct: number;
+  weightGoal: WeightGoal;
 }
 
 function key(name: string): string {
@@ -105,7 +131,7 @@ export function setWater(date: string, glasses: number): void {
   setItem("water", entries);
 }
 
-// Calories
+// Calories (legacy — kept for backward compat, but meals now drive calorie data)
 export function getCalories(date: string): number {
   return getItem<CalorieEntry[]>("calories", []).find((c) => c.date === date)?.calories ?? 0;
 }
@@ -119,6 +145,63 @@ export function setCalories(date: string, calories: number): void {
     entries.push({ date, calories });
   }
   setItem("calories", entries);
+}
+
+// Meals
+export function getMeals(): MealEntry[] {
+  return getItem<MealEntry[]>("meals", []);
+}
+
+export function getMealsByDate(date: string): MealEntry[] {
+  return getMeals().filter((m) => m.date === date);
+}
+
+export function getDailyMacros(date: string): DailyMacros {
+  const meals = getMealsByDate(date);
+  return meals.reduce(
+    (acc, m) => ({
+      calories: acc.calories + m.calories,
+      protein: acc.protein + m.protein,
+      carbs: acc.carbs + m.carbs,
+      fat: acc.fat + m.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+}
+
+export function saveMeal(entry: Omit<MealEntry, "id">): MealEntry {
+  const meals = getMeals();
+  const newEntry: MealEntry = { ...entry, id: crypto.randomUUID() };
+  meals.push(newEntry);
+  meals.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  setItem("meals", meals);
+  return newEntry;
+}
+
+export function deleteMeal(id: string): void {
+  const meals = getMeals().filter((m) => m.id !== id);
+  setItem("meals", meals);
+}
+
+export function getRecentFoods(limit: number = 10): Omit<MealEntry, "id" | "date">[] {
+  const meals = getMeals();
+  const seen = new Set<string>();
+  const result: Omit<MealEntry, "id" | "date">[] = [];
+  for (const m of meals) {
+    const key = m.foodName.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({
+      mealType: m.mealType,
+      foodName: m.foodName,
+      calories: m.calories,
+      protein: m.protein,
+      carbs: m.carbs,
+      fat: m.fat,
+    });
+    if (result.length >= limit) break;
+  }
+  return result;
 }
 
 // Workouts
@@ -215,14 +298,35 @@ export function deleteTemplate(id: string): void {
 }
 
 // Settings
+const DEFAULT_SETTINGS: UserSettings = {
+  waterGoal: 8,
+  calorieTarget: 2000,
+  name: "User",
+  proteinPct: 30,
+  carbsPct: 40,
+  fatPct: 30,
+  weightGoal: "maintain",
+};
+
 export function getSettings(): UserSettings {
-  return getItem<UserSettings>("settings", {
-    waterGoal: 8,
-    calorieTarget: 2000,
-    name: "User",
-  });
+  return { ...DEFAULT_SETTINGS, ...getItem<Partial<UserSettings>>("settings", {}) };
 }
 
 export function saveSettings(settings: UserSettings): void {
   setItem("settings", settings);
+}
+
+export function getMacroTargets(settings: UserSettings): { protein: number; carbs: number; fat: number } {
+  const cals = settings.calorieTarget;
+  return {
+    protein: Math.round((cals * settings.proteinPct) / 100 / 4),
+    carbs: Math.round((cals * settings.carbsPct) / 100 / 4),
+    fat: Math.round((cals * settings.fatPct) / 100 / 9),
+  };
+}
+
+export function getSuggestedCalories(base: number, goal: WeightGoal): number {
+  if (goal === "lose") return base - 300;
+  if (goal === "gain") return base + 300;
+  return base;
 }
