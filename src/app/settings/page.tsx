@@ -1,15 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   getSettings,
   saveSettings,
   getMacroTargets,
   getSuggestedCalories,
+  getProfiles,
+  saveProfile,
+  updateProfile,
+  deleteProfile,
+  exportProfileData,
+  importProfileData,
+  clearProfileData,
+  PROFILE_COLORS,
   type UserSettings,
   type WeightGoal,
+  type Profile,
 } from "@/lib/storage";
+import { useProfile } from "@/lib/ProfileContext";
 import Toast from "@/components/Toast";
+import {
+  Trash2,
+  Plus,
+  Download,
+  Upload,
+  AlertTriangle,
+  Check,
+  X,
+} from "lucide-react";
 
 const GOAL_OPTIONS: { value: WeightGoal; label: string; desc: string }[] = [
   { value: "lose", label: "Lose Weight", desc: "-300 cal/day" },
@@ -18,6 +37,7 @@ const GOAL_OPTIONS: { value: WeightGoal; label: string; desc: string }[] = [
 ];
 
 export default function SettingsPage() {
+  const { activeId, refreshProfiles, switchProfile } = useProfile();
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState<UserSettings>({
     waterGoal: 8,
@@ -28,12 +48,24 @@ export default function SettingsPage() {
     fatPct: 30,
     weightGoal: "maintain",
   });
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [toast, setToast] = useState("");
+  const [editingProfile, setEditingProfile] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editColor, setEditColor] = useState("");
+  const [showNewProfile, setShowNewProfile] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(PROFILE_COLORS[1]);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearInput, setClearInput] = useState("");
+  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
     setSettings(getSettings());
-  }, []);
+    setProfiles(getProfiles());
+  }, [activeId]);
 
   if (!mounted) {
     return (
@@ -51,10 +83,8 @@ export default function SettingsPage() {
 
   function updateMacroPct(field: "proteinPct" | "carbsPct" | "fatPct", value: number) {
     const next = { ...settings, [field]: value };
-    // Auto-adjust: keep total at 100 by adjusting the last changed field
     const total = next.proteinPct + next.carbsPct + next.fatPct;
     if (total !== 100) {
-      // Adjust the "other" macro that wasn't just changed
       if (field === "proteinPct") {
         const remaining = 100 - next.proteinPct;
         const ratio =
@@ -84,6 +114,84 @@ export default function SettingsPage() {
     setSettings(next);
   }
 
+  function handleAddProfile() {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    saveProfile({ name: trimmed, color: newColor });
+    setNewName("");
+    setShowNewProfile(false);
+    setProfiles(getProfiles());
+    refreshProfiles();
+    setToast("Profile created!");
+  }
+
+  function handleEditProfile(id: string) {
+    const p = profiles.find((pr) => pr.id === id);
+    if (!p) return;
+    setEditingProfile(id);
+    setEditName(p.name);
+    setEditColor(p.color);
+  }
+
+  function handleSaveEdit() {
+    if (!editingProfile) return;
+    updateProfile(editingProfile, { name: editName.trim() || "User", color: editColor });
+    setEditingProfile(null);
+    setProfiles(getProfiles());
+    refreshProfiles();
+    setToast("Profile updated!");
+  }
+
+  function handleDeleteProfile(id: string) {
+    deleteProfile(id);
+    setConfirmDelete(null);
+    const updated = getProfiles();
+    setProfiles(updated);
+    if (id === activeId && updated.length > 0) {
+      switchProfile(updated[0].id);
+    }
+    refreshProfiles();
+    setToast("Profile deleted.");
+  }
+
+  function handleExport() {
+    const json = exportProfileData();
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fitlife-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setToast("Data exported!");
+  }
+
+  function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      if (importProfileData(text)) {
+        setSettings(getSettings());
+        setToast("Data imported successfully!");
+      } else {
+        setToast("Import failed — invalid file.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  function handleClearData() {
+    if (clearInput !== "DELETE") return;
+    clearProfileData();
+    setShowClearConfirm(false);
+    setClearInput("");
+    setSettings(getSettings());
+    setToast("All data cleared.");
+  }
+
   const macros = getMacroTargets(settings);
   const suggestedCals = getSuggestedCalories(2000, settings.weightGoal);
 
@@ -93,10 +201,181 @@ export default function SettingsPage() {
 
       <h1 className="text-xl font-bold">Settings</h1>
 
+      {/* Profiles */}
+      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-300">Profiles</h2>
+          {profiles.length < 4 && (
+            <button
+              onClick={() => setShowNewProfile(true)}
+              className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1 transition"
+            >
+              <Plus size={12} /> Add
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          {profiles.map((p) => {
+            const isActive = p.id === activeId;
+            const isEditing = editingProfile === p.id;
+
+            if (isEditing) {
+              return (
+                <div key={p.id} className="bg-slate-700 rounded-lg p-3 space-y-2">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full bg-slate-600 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                  <div className="flex gap-2">
+                    {PROFILE_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setEditColor(c)}
+                        className={`w-6 h-6 rounded-full transition-all ${
+                          editColor === c ? "ring-2 ring-white scale-110" : "opacity-50"
+                        }`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveEdit}
+                      className="flex-1 bg-teal-600 text-white text-xs py-1.5 rounded-lg flex items-center justify-center gap-1"
+                    >
+                      <Check size={12} /> Save
+                    </button>
+                    <button
+                      onClick={() => setEditingProfile(null)}
+                      className="flex-1 bg-slate-600 text-slate-300 text-xs py-1.5 rounded-lg flex items-center justify-center gap-1"
+                    >
+                      <X size={12} /> Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={p.id}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${
+                  isActive ? "bg-slate-700" : "bg-slate-800"
+                }`}
+              >
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                  style={{ backgroundColor: p.color }}
+                >
+                  {p.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {p.name}
+                  </p>
+                  {isActive && (
+                    <p className="text-[10px] text-teal-400">Active</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  {!isActive && (
+                    <button
+                      onClick={() => switchProfile(p.id)}
+                      className="text-[10px] text-slate-400 hover:text-teal-400 px-2 py-1 transition"
+                    >
+                      Switch
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleEditProfile(p.id)}
+                    className="text-[10px] text-slate-400 hover:text-white px-2 py-1 transition"
+                  >
+                    Edit
+                  </button>
+                  {!isActive && profiles.length > 1 && (
+                    <>
+                      {confirmDelete === p.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDeleteProfile(p.id)}
+                            className="text-[10px] text-red-400 px-1"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="text-[10px] text-slate-400 px-1"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(p.id)}
+                          className="text-slate-500 hover:text-red-400 p-1 transition"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* New profile form */}
+        {showNewProfile && (
+          <div className="bg-slate-700 rounded-lg p-3 space-y-2">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Profile name"
+              autoFocus
+              className="w-full bg-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <div className="flex gap-2">
+              {PROFILE_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setNewColor(c)}
+                  className={`w-6 h-6 rounded-full transition-all ${
+                    newColor === c ? "ring-2 ring-white scale-110" : "opacity-50"
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleAddProfile}
+                className="flex-1 bg-teal-600 text-white text-xs py-1.5 rounded-lg flex items-center justify-center gap-1"
+              >
+                <Plus size={12} /> Create
+              </button>
+              <button
+                onClick={() => setShowNewProfile(false)}
+                className="flex-1 bg-slate-600 text-slate-300 text-xs py-1.5 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Settings form */}
       <form onSubmit={handleSave} className="space-y-4">
-        {/* Profile */}
+        {/* Profile settings */}
         <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-300">Profile</h2>
+          <h2 className="text-sm font-semibold text-slate-300">Profile Settings</h2>
           <div>
             <label className="text-xs text-slate-400 font-medium">
               Display Name
@@ -137,7 +416,6 @@ export default function SettingsPage() {
             Nutrition Targets
           </h2>
 
-          {/* Weight goal */}
           <div>
             <label className="text-xs text-slate-400 font-medium mb-2 block">
               Weight Goal
@@ -173,7 +451,6 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          {/* Calorie target */}
           <div>
             <label className="text-xs text-slate-400 font-medium">
               Daily Calorie Target
@@ -193,7 +470,6 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* Macro split */}
           <div>
             <label className="text-xs text-slate-400 font-medium mb-2 block">
               Macro Split
@@ -236,11 +512,79 @@ export default function SettingsPage() {
         </button>
       </form>
 
+      {/* Data Management */}
+      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-slate-300">Data Management</h2>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleExport}
+            className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-xs font-medium transition"
+          >
+            <Download size={14} /> Export Data
+          </button>
+          <button
+            onClick={() => importRef.current?.click()}
+            className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-xs font-medium transition"
+          >
+            <Upload size={14} /> Import Data
+          </button>
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleImport}
+          />
+        </div>
+
+        {!showClearConfirm ? (
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="w-full flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 py-2.5 rounded-xl text-xs font-medium transition"
+          >
+            <AlertTriangle size={14} /> Clear All Profile Data
+          </button>
+        ) : (
+          <div className="bg-red-600/10 rounded-xl p-3 space-y-2">
+            <p className="text-xs text-red-400 font-medium">
+              This will permanently delete all data for the current profile.
+              Type DELETE to confirm.
+            </p>
+            <input
+              type="text"
+              value={clearInput}
+              onChange={(e) => setClearInput(e.target.value)}
+              placeholder='Type "DELETE"'
+              className="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-red-500"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleClearData}
+                disabled={clearInput !== "DELETE"}
+                className="flex-1 bg-red-600 disabled:bg-red-600/30 text-white disabled:text-red-300 text-xs py-2 rounded-lg transition"
+              >
+                Confirm Delete
+              </button>
+              <button
+                onClick={() => {
+                  setShowClearConfirm(false);
+                  setClearInput("");
+                }}
+                className="flex-1 bg-slate-700 text-slate-300 text-xs py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="bg-slate-800 rounded-2xl p-4">
         <h2 className="text-sm font-semibold text-slate-300 mb-2">About</h2>
         <p className="text-xs text-slate-400 leading-relaxed">
-          FitLife v1.0 — Your personal health and fitness tracker. Data is stored
-          locally on your device.
+          FitLife v2.0 — Your personal health and fitness tracker. Data is stored
+          locally on your device. Supports multiple profiles.
         </p>
       </div>
     </div>

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import BottomNav from "@/components/BottomNav";
-import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
+import ClientShell from "@/components/ClientShell";
 
 export const metadata: Metadata = {
   title: "FitLife - Health & Fitness Tracker",
@@ -33,9 +32,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="min-h-full bg-slate-950 text-white antialiased font-sans">
-        <main className="max-w-lg mx-auto pb-20 px-4 pt-4">{children}</main>
-        <BottomNav />
-        <ServiceWorkerRegistrar />
+        <ClientShell>{children}</ClientShell>
       </body>
     </html>
   );

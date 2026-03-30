@@ -1,5 +1,127 @@
-const PROFILE_ID = "default";
+// --- Profile System ---
+export const PROFILE_COLORS = ["#0d9488", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#22c55e"];
 
+export interface Profile {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+let activeProfileId = "default";
+
+function globalGet<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function globalSet<T>(key: string, value: T): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+export function getProfiles(): Profile[] {
+  return globalGet<Profile[]>("fitlife_profiles", []);
+}
+
+export function saveProfile(entry: Omit<Profile, "id" | "createdAt">): Profile {
+  const profiles = getProfiles();
+  const newProfile: Profile = {
+    ...entry,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  profiles.push(newProfile);
+  globalSet("fitlife_profiles", profiles);
+  return newProfile;
+}
+
+export function updateProfile(id: string, updates: Partial<Pick<Profile, "name" | "color">>): void {
+  const profiles = getProfiles().map((p) =>
+    p.id === id ? { ...p, ...updates } : p
+  );
+  globalSet("fitlife_profiles", profiles);
+}
+
+export function deleteProfile(id: string): void {
+  // Remove all profile-scoped data
+  if (typeof window !== "undefined") {
+    const suffix = `_${id}`;
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.endsWith(suffix)) keysToRemove.push(k);
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  }
+  const profiles = getProfiles().filter((p) => p.id !== id);
+  globalSet("fitlife_profiles", profiles);
+}
+
+export function getActiveProfileId(): string {
+  if (typeof window === "undefined") return "default";
+  const stored = localStorage.getItem("fitlife_active_profile");
+  if (stored) {
+    const profiles = getProfiles();
+    if (profiles.some((p) => p.id === stored)) return stored;
+  }
+  const profiles = getProfiles();
+  return profiles[0]?.id ?? "default";
+}
+
+export function setActiveProfileId(id: string): void {
+  activeProfileId = id;
+  if (typeof window !== "undefined") {
+    localStorage.setItem("fitlife_active_profile", id);
+  }
+}
+
+export function initProfiles(): string {
+  const profiles = getProfiles();
+  if (profiles.length === 0) {
+    // Migrate: check if there's existing data under "default" profile
+    // Don't auto-create here — onboarding will handle first profile creation
+    // But if there's legacy data, create a default profile for it
+    if (typeof window !== "undefined") {
+      const hasLegacy = localStorage.getItem("settings_default");
+      if (hasLegacy) {
+        const legacySettings = JSON.parse(hasLegacy) as Partial<UserSettings>;
+        const profile = saveProfile({
+          name: legacySettings.name || "User",
+          color: PROFILE_COLORS[0],
+        });
+        // Re-key legacy data from _default to _<newId>
+        const suffix = "_default";
+        const remap: [string, string][] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.endsWith(suffix) && !k.startsWith("fitlife_")) {
+            const base = k.slice(0, -suffix.length);
+            remap.push([k, `${base}_${profile.id}`]);
+          }
+        }
+        for (const [oldKey, newKey] of remap) {
+          const val = localStorage.getItem(oldKey);
+          if (val) localStorage.setItem(newKey, val);
+          localStorage.removeItem(oldKey);
+        }
+        setActiveProfileId(profile.id);
+        return profile.id;
+      }
+    }
+    return ""; // No profiles — onboarding needed
+  }
+  const id = getActiveProfileId();
+  activeProfileId = id;
+  return id;
+}
+
+// --- Core Storage Helpers ---
 export interface MetricEntry {
   id: string;
   date: string;
@@ -78,7 +200,7 @@ export interface UserSettings {
 }
 
 function key(name: string): string {
-  return `${name}_${PROFILE_ID}`;
+  return `${name}_${activeProfileId}`;
 }
 
 function getItem<T>(name: string, fallback: T): T {
@@ -131,7 +253,7 @@ export function setWater(date: string, glasses: number): void {
   setItem("water", entries);
 }
 
-// Calories (legacy — kept for backward compat, but meals now drive calorie data)
+// Calories (legacy)
 export function getCalories(date: string): number {
   return getItem<CalorieEntry[]>("calories", []).find((c) => c.date === date)?.calories ?? 0;
 }
@@ -188,9 +310,9 @@ export function getRecentFoods(limit: number = 10): Omit<MealEntry, "id" | "date
   const seen = new Set<string>();
   const result: Omit<MealEntry, "id" | "date">[] = [];
   for (const m of meals) {
-    const key = m.foodName.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const k = m.foodName.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
     result.push({
       mealType: m.mealType,
       foodName: m.foodName,
@@ -365,4 +487,80 @@ export function getPhotoStorageSize(): number {
   if (typeof window === "undefined") return 0;
   const raw = localStorage.getItem(key("progress_photos"));
   return raw ? raw.length * 2 : 0;
+}
+
+// --- Grocery List (shared, not profile-scoped) ---
+export const GROCERY_CATEGORIES = ["Produce", "Dairy", "Meat", "Pantry", "Beverages", "Other"] as const;
+
+export interface GroceryItem {
+  id: string;
+  name: string;
+  category: string;
+  checked: boolean;
+}
+
+export function getGroceryList(): GroceryItem[] {
+  return globalGet<GroceryItem[]>("fitlife_grocery", []);
+}
+
+export function saveGroceryItem(entry: Omit<GroceryItem, "id">): GroceryItem {
+  const items = getGroceryList();
+  const newItem: GroceryItem = { ...entry, id: crypto.randomUUID() };
+  items.push(newItem);
+  globalSet("fitlife_grocery", items);
+  return newItem;
+}
+
+export function toggleGroceryItem(id: string): void {
+  const items = getGroceryList().map((item) =>
+    item.id === id ? { ...item, checked: !item.checked } : item
+  );
+  globalSet("fitlife_grocery", items);
+}
+
+export function deleteGroceryItem(id: string): void {
+  const items = getGroceryList().filter((item) => item.id !== id);
+  globalSet("fitlife_grocery", items);
+}
+
+export function clearCheckedGrocery(): void {
+  const items = getGroceryList().filter((item) => !item.checked);
+  globalSet("fitlife_grocery", items);
+}
+
+// --- Data Management ---
+const PROFILE_DATA_KEYS = [
+  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos",
+];
+
+export function exportProfileData(): string {
+  const data: Record<string, unknown> = {};
+  for (const name of PROFILE_DATA_KEYS) {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(key(name)) : null;
+    if (raw) data[name] = JSON.parse(raw);
+  }
+  return JSON.stringify(data, null, 2);
+}
+
+export function importProfileData(json: string): boolean {
+  try {
+    const data = JSON.parse(json) as Record<string, unknown>;
+    for (const name of PROFILE_DATA_KEYS) {
+      if (data[name] !== undefined) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(key(name), JSON.stringify(data[name]));
+        }
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearProfileData(): void {
+  if (typeof window === "undefined") return;
+  for (const name of PROFILE_DATA_KEYS) {
+    localStorage.removeItem(key(name));
+  }
 }

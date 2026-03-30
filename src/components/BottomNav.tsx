@@ -7,7 +7,7 @@ import {
   ClipboardList,
   Dumbbell,
   TrendingUp,
-  Settings,
+  ShoppingCart,
 } from "lucide-react";
 
 const tabs = [
@@ -15,7 +15,7 @@ const tabs = [
   { href: "/log", label: "Log", icon: ClipboardList },
   { href: "/workouts", label: "Workouts", icon: Dumbbell },
   { href: "/progress", label: "Progress", icon: TrendingUp },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/grocery", label: "Grocery", icon: ShoppingCart },
 ];
 
 export default function BottomNav() {
