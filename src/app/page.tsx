@@ -17,6 +17,7 @@ import {
   getWorkouts,
   getSettings,
   getMacroTargets,
+  getPlannedWorkoutForDay,
 } from "@/lib/storage";
 import WaterTracker from "@/components/WaterTracker";
 import WeightChart from "@/components/WeightChart";
@@ -52,6 +53,8 @@ export default function Dashboard() {
   const dailyMacros = getDailyMacros(today);
   const workouts = getWorkouts();
   const lastWorkout = workouts[0];
+  const todayDayName = format(new Date(), "EEEE");
+  const plannedWorkout = getPlannedWorkoutForDay(todayDayName);
   const lastWorkoutDays = lastWorkout
     ? differenceInDays(new Date(), new Date(lastWorkout.date))
     : null;
@@ -173,6 +176,26 @@ export default function Dashboard() {
             </>
           )}
         </div>
+
+        {/* Today's Planned Workout */}
+        {plannedWorkout && (
+          <Link href="/workouts" className="bg-gradient-to-r from-violet-600/20 to-teal-600/20 border border-violet-500/20 rounded-2xl p-4 col-span-2 block hover:from-violet-600/30 hover:to-teal-600/30 transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-violet-400 font-medium mb-1">
+                  Today&apos;s Planned Workout
+                </p>
+                <p className="text-sm font-semibold">{plannedWorkout.workout_name}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {plannedWorkout.exercises.length} exercises · Tap to start
+                </p>
+              </div>
+              <div className="bg-violet-600/30 rounded-lg p-2">
+                <Dumbbell size={18} className="text-violet-400" />
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Last Workout */}
         <div className="bg-slate-800 rounded-2xl p-4 col-span-2">

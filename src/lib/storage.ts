@@ -627,9 +627,78 @@ export function clearChatHistory(): void {
   setItem("coach_chat", []);
 }
 
+// --- Training Plans ---
+export interface PlanExercise {
+  name: string;
+  sets: number;
+  reps: string;
+  rest_seconds: number;
+  notes?: string;
+}
+
+export interface PlanDay {
+  day: string;
+  workout_name: string;
+  exercises: PlanExercise[];
+}
+
+export interface TrainingPlan {
+  id: string;
+  plan_name: string;
+  description: string;
+  days: PlanDay[];
+  rest_days: string[];
+  progression_notes: string;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export function getTrainingPlans(): TrainingPlan[] {
+  return getItem<TrainingPlan[]>("training_plans", []);
+}
+
+export function saveTrainingPlan(plan: Omit<TrainingPlan, "id" | "createdAt">): TrainingPlan {
+  const plans = getTrainingPlans();
+  const newPlan: TrainingPlan = {
+    ...plan,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  // If this plan is active, deactivate others
+  if (newPlan.isActive) {
+    for (const p of plans) p.isActive = false;
+  }
+  plans.unshift(newPlan);
+  setItem("training_plans", plans);
+  return newPlan;
+}
+
+export function deleteTrainingPlan(id: string): void {
+  const plans = getTrainingPlans().filter((p) => p.id !== id);
+  setItem("training_plans", plans);
+}
+
+export function setActivePlan(id: string): void {
+  const plans = getTrainingPlans().map((p) => ({
+    ...p,
+    isActive: p.id === id,
+  }));
+  setItem("training_plans", plans);
+}
+
+export function getActivePlan(): TrainingPlan | null {
+  return getTrainingPlans().find((p) => p.isActive) ?? null;
+}
+
+export function getPlannedWorkoutForDay(dayName: string): PlanDay | null {
+  const plan = getActivePlan();
+  if (!plan) return null;
+  return plan.days.find((d) => d.day.toLowerCase() === dayName.toLowerCase()) ?? null;
+}
+
 // --- Data Management ---
 const PROFILE_DATA_KEYS = [
-  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat", "measurements",
+  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat", "measurements", "training_plans",
 ];
 
 export function exportProfileData(): string {
