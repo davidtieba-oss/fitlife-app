@@ -6,20 +6,24 @@ import {
   getWorkouts,
   getMeals,
   getSettings,
+  getMeasurements,
   type MetricEntry,
   type WorkoutEntry,
   type MealEntry,
   type UserSettings,
+  type MeasurementEntry,
 } from "@/lib/storage";
 import WeightTab from "@/components/progress/WeightTab";
+import BodyTab from "@/components/progress/BodyTab";
 import WorkoutsTab from "@/components/progress/WorkoutsTab";
 import NutritionTab from "@/components/progress/NutritionTab";
 import PhotosTab from "@/components/progress/PhotosTab";
 
-type Tab = "weight" | "workouts" | "nutrition" | "photos";
+type Tab = "weight" | "body" | "workouts" | "nutrition" | "photos";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "weight", label: "Weight" },
+  { value: "body", label: "Body" },
   { value: "workouts", label: "Workouts" },
   { value: "nutrition", label: "Nutrition" },
   { value: "photos", label: "Photos" },
@@ -32,6 +36,7 @@ export default function ProgressPage() {
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [measurements, setMeasurements] = useState<MeasurementEntry[]>([]);
   const [weightPeriod, setWeightPeriod] = useState(30);
 
   useEffect(() => {
@@ -40,6 +45,7 @@ export default function ProgressPage() {
     setWorkouts(getWorkouts());
     setMeals(getMeals());
     setSettings(getSettings());
+    setMeasurements(getMeasurements());
   }, []);
 
   if (!mounted || !settings) {
@@ -78,6 +84,8 @@ export default function ProgressPage() {
           onPeriodChange={setWeightPeriod}
         />
       )}
+
+      {tab === "body" && <BodyTab measurements={measurements} />}
 
       {tab === "workouts" && <WorkoutsTab workouts={workouts} />}
 

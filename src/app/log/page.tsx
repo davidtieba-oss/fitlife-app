@@ -13,6 +13,7 @@ import {
   Check,
   Pencil,
   X,
+  Ruler,
 } from "lucide-react";
 import { askAI } from "@/lib/ai";
 import {
@@ -26,13 +27,17 @@ import {
   getDailyMacros,
   getSettings,
   getMacroTargets,
+  getMeasurements,
+  saveMeasurement,
+  deleteMeasurement,
   type MetricEntry,
   type MealEntry,
   type MealType,
+  type MeasurementEntry,
 } from "@/lib/storage";
 import Toast from "@/components/Toast";
 
-type Tab = "metrics" | "meals";
+type Tab = "metrics" | "meals" | "measurements";
 type AiMode = "idle" | "text" | "photo" | "loading" | "preview";
 const MEAL_TYPES: MealType[] = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
@@ -85,17 +90,24 @@ export default function LogPage() {
   const [aiError, setAiError] = useState("");
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // Measurements state
+  const [measureDate, setMeasureDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [measurements, setMeasurementsState] = useState<MeasurementEntry[]>([]);
+  const [measureFields, setMeasureFields] = useState<Record<string, string>>({});
+
   const refreshMetrics = useCallback(() => setMetrics(getMetrics()), []);
   const refreshMeals = useCallback(
     () => setTodayMeals(getMealsByDate(mealDate)),
     [mealDate]
   );
+  const refreshMeasurements = useCallback(() => setMeasurementsState(getMeasurements()), []);
 
   useEffect(() => {
     setMounted(true);
     refreshMetrics();
     refreshMeals();
-  }, [refreshMetrics, refreshMeals]);
+    refreshMeasurements();
+  }, [refreshMetrics, refreshMeals, refreshMeasurements]);
 
   useEffect(() => {
     if (mounted) refreshMeals();
@@ -315,22 +327,17 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
 
       {/* Tab switcher */}
       <div className="flex bg-slate-800 rounded-xl p-1">
-        <button
-          onClick={() => setTab("metrics")}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "metrics" ? "bg-teal-600 text-white" : "text-slate-400"
-          }`}
-        >
-          Body Metrics
-        </button>
-        <button
-          onClick={() => setTab("meals")}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
-            tab === "meals" ? "bg-teal-600 text-white" : "text-slate-400"
-          }`}
-        >
-          Meals
-        </button>
+        {(["metrics", "meals", "measurements"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${
+              tab === t ? "bg-teal-600 text-white" : "text-slate-400"
+            }`}
+          >
+            {t === "metrics" ? "Body Metrics" : t === "meals" ? "Meals" : "Measurements"}
+          </button>
+        ))}
       </div>
 
       {/* === Body Metrics Tab === */}
@@ -731,6 +738,185 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
           </div>
         </div>
       )}
+
+      {/* === Measurements Tab === */}
+      {tab === "measurements" && (
+        <MeasurementsSection
+          date={measureDate}
+          onDateChange={setMeasureDate}
+          measurements={measurements}
+          fields={measureFields}
+          onFieldsChange={setMeasureFields}
+          onSave={() => {
+            const hasAny = MEASURE_FIELDS.some((f) => measureFields[f.key]?.trim());
+            if (!hasAny) return;
+            const entry: MeasurementEntry = {
+              id: crypto.randomUUID(),
+              date: measureDate,
+            };
+            for (const f of MEASURE_FIELDS) {
+              const v = parseFloat(measureFields[f.key] || "");
+              if (!isNaN(v) && v > 0) (entry as unknown as Record<string, unknown>)[f.key] = v;
+            }
+            saveMeasurement(entry);
+            setMeasureFields({});
+            setToast("Measurements saved!");
+            refreshMeasurements();
+          }}
+          onDelete={(id) => {
+            deleteMeasurement(id);
+            refreshMeasurements();
+          }}
+          toast={toast}
+        />
+      )}
+    </div>
+  );
+}
+
+// --- Measurement Fields Config ---
+const MEASURE_FIELDS = [
+  { key: "neck", label: "Neck" },
+  { key: "chest", label: "Chest" },
+  { key: "waist", label: "Waist" },
+  { key: "hips", label: "Hips" },
+  { key: "leftBicep", label: "L Bicep" },
+  { key: "rightBicep", label: "R Bicep" },
+  { key: "leftThigh", label: "L Thigh" },
+  { key: "rightThigh", label: "R Thigh" },
+  { key: "calves", label: "Calves" },
+] as const;
+
+// --- Measurements Section Component ---
+function MeasurementsSection({
+  date,
+  onDateChange,
+  measurements,
+  fields,
+  onFieldsChange,
+  onSave,
+  onDelete,
+}: {
+  date: string;
+  onDateChange: (d: string) => void;
+  measurements: MeasurementEntry[];
+  fields: Record<string, string>;
+  onFieldsChange: (f: Record<string, string>) => void;
+  onSave: () => void;
+  onDelete: (id: string) => void;
+  toast: string;
+}) {
+  const lastEntry = measurements[0];
+  const todayEntry = measurements.find((m) => m.date === date);
+  const prevEntry = todayEntry ? measurements.find((m) => m.date < date) : lastEntry;
+  const currentEntry = todayEntry || lastEntry;
+
+  return (
+    <div className="space-y-4">
+      {/* Form */}
+      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Ruler size={14} className="text-teal-400" />
+          <p className="text-xs font-semibold text-white">Body Measurements (cm)</p>
+        </div>
+
+        <div>
+          <label className="text-xs text-slate-400 font-medium">Date</label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => onDateChange(e.target.value)}
+            className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {MEASURE_FIELDS.map((f) => (
+            <div key={f.key}>
+              <label className="text-[10px] text-slate-400 font-medium">{f.label}</label>
+              <input
+                type="number"
+                step="0.1"
+                value={fields[f.key] || ""}
+                onChange={(e) => onFieldsChange({ ...fields, [f.key]: e.target.value })}
+                placeholder={
+                  lastEntry
+                    ? String((lastEntry as unknown as Record<string, unknown>)[f.key] || "")
+                    : ""
+                }
+                className="w-full mt-0.5 bg-slate-700 rounded-lg px-2 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={onSave}
+          disabled={!MEASURE_FIELDS.some((f) => fields[f.key]?.trim())}
+          className="w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition active:scale-[0.98]"
+        >
+          Save Measurements
+        </button>
+      </div>
+
+      {/* Comparison card */}
+      {currentEntry && prevEntry && currentEntry.id !== prevEntry.id && (
+        <div className="bg-slate-800 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-slate-300 mb-2">Changes</p>
+          <div className="grid grid-cols-3 gap-2">
+            {MEASURE_FIELDS.map((f) => {
+              const curr = (currentEntry as unknown as Record<string, unknown>)[f.key] as number | undefined;
+              const prev = (prevEntry as unknown as Record<string, unknown>)[f.key] as number | undefined;
+              if (!curr || !prev) return null;
+              const diff = curr - prev;
+              return (
+                <div key={f.key} className="text-center">
+                  <p className="text-[10px] text-slate-400">{f.label}</p>
+                  <p className="text-xs font-medium text-white">{curr} cm</p>
+                  {diff !== 0 && (
+                    <p className={`text-[10px] flex items-center justify-center gap-0.5 ${diff > 0 ? "text-orange-400" : "text-green-400"}`}>
+                      {diff > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                      {diff > 0 ? "+" : ""}{diff.toFixed(1)}
+                    </p>
+                  )}
+                </div>
+              );
+            }).filter(Boolean)}
+          </div>
+        </div>
+      )}
+
+      {/* Recent entries */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-300 mb-2">Recent Measurements</h2>
+        {measurements.length === 0 ? (
+          <p className="text-sm text-slate-500">No measurements yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {measurements.slice(0, 5).map((m) => {
+              const fields_present = MEASURE_FIELDS.filter(
+                (f) => (m as unknown as Record<string, unknown>)[f.key] != null
+              );
+              return (
+                <div key={m.id} className="bg-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{format(parseISO(m.date), "MMM d, yyyy")}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {fields_present.map((f) => `${f.label}: ${(m as unknown as Record<string, unknown>)[f.key]}cm`).join(" · ")}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onDelete(m.id)}
+                    className="text-slate-500 hover:text-red-400 p-1 transition"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

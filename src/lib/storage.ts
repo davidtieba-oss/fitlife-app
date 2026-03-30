@@ -453,12 +453,44 @@ export function getSuggestedCalories(base: number, goal: WeightGoal): number {
   return base;
 }
 
+// Body Measurements
+export interface MeasurementEntry {
+  id: string;
+  date: string;
+  neck?: number;
+  chest?: number;
+  waist?: number;
+  hips?: number;
+  leftBicep?: number;
+  rightBicep?: number;
+  leftThigh?: number;
+  rightThigh?: number;
+  calves?: number;
+}
+
+export function getMeasurements(): MeasurementEntry[] {
+  return getItem<MeasurementEntry[]>("measurements", []);
+}
+
+export function saveMeasurement(entry: MeasurementEntry): void {
+  const measurements = getMeasurements();
+  measurements.unshift(entry);
+  measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  setItem("measurements", measurements);
+}
+
+export function deleteMeasurement(id: string): void {
+  const measurements = getMeasurements().filter((m) => m.id !== id);
+  setItem("measurements", measurements);
+}
+
 // Progress Photos
 export interface ProgressPhoto {
   id: string;
   date: string;
   dataUrl: string;
   label?: string;
+  pose?: "front" | "side" | "back";
 }
 
 export function getProgressPhotos(): ProgressPhoto[] {
@@ -597,7 +629,7 @@ export function clearChatHistory(): void {
 
 // --- Data Management ---
 const PROFILE_DATA_KEYS = [
-  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat",
+  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat", "measurements",
 ];
 
 export function exportProfileData(): string {
