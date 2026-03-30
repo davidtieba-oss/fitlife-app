@@ -14,6 +14,7 @@ import {
   Pencil,
   X,
 } from "lucide-react";
+import { askAI } from "@/lib/ai";
 import {
   getMetrics,
   saveMetric,
@@ -180,25 +181,29 @@ export default function LogPage() {
   }
 
   // --- AI Meal Estimation ---
+  const MEAL_SYSTEM_PROMPT = `You are a nutrition estimation assistant. Given a food description or photo, estimate the nutritional content of each food item. Return ONLY valid JSON with this exact format, no other text:
+{"foods":[{"name":"string","calories":number,"protein_g":number,"carbs_g":number,"fat_g":number}],"total":{"calories":number,"protein_g":number,"carbs_g":number,"fat_g":number},"portion_note":"string"}
+Be realistic with portion sizes. If uncertain, provide your best estimate and note it in portion_note.`;
+
   async function handleAiEstimate(type: "text" | "image", content: string) {
     setAiMode("loading");
     setAiError("");
     try {
-      const res = await fetch("/api/estimate-meal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, content }),
+      const text = await askAI({
+        system: MEAL_SYSTEM_PROMPT,
+        userMessage:
+          type === "text"
+            ? `Estimate the nutritional content of this meal: ${content}`
+            : "Look at this photo of food. Estimate the portion sizes and nutritional content. Return ONLY valid JSON with the format specified.",
+        imageBase64: type === "image" ? content : undefined,
+        maxTokens: 1024,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setAiError(data.error || "Failed to estimate meal");
-        setAiMode("idle");
-        return;
-      }
-      setAiResult(data as AiEstimate);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("Could not parse nutrition data");
+      setAiResult(JSON.parse(jsonMatch[0]) as AiEstimate);
       setAiMode("preview");
-    } catch {
-      setAiError("Network error — please try again");
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Failed to estimate meal");
       setAiMode("idle");
     }
   }

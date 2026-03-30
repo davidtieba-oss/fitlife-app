@@ -14,10 +14,15 @@ import {
   importProfileData,
   clearProfileData,
   PROFILE_COLORS,
+  getAiSettings,
+  saveAiSettings,
+  AI_MODELS,
   type UserSettings,
   type WeightGoal,
   type Profile,
+  type AiSettings,
 } from "@/lib/storage";
+import { askAI } from "@/lib/ai";
 import { useProfile } from "@/lib/ProfileContext";
 import Toast from "@/components/Toast";
 import {
@@ -28,6 +33,11 @@ import {
   AlertTriangle,
   Check,
   X,
+  Sparkles,
+  Zap,
+  Loader2,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 const GOAL_OPTIONS: { value: WeightGoal; label: string; desc: string }[] = [
@@ -61,10 +71,16 @@ export default function SettingsPage() {
   const [clearInput, setClearInput] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
 
+  // AI settings state
+  const [aiSettings, setAiSettingsState] = useState<AiSettings>({ apiKey: "", model: "claude-sonnet-4-20250514" });
+  const [aiTestStatus, setAiTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [aiTestError, setAiTestError] = useState("");
+
   useEffect(() => {
     setMounted(true);
     setSettings(getSettings());
     setProfiles(getProfiles());
+    setAiSettingsState(getAiSettings());
   }, [activeId]);
 
   if (!mounted) {
@@ -580,11 +596,118 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* AI Settings */}
+      <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} className="text-violet-400" />
+          <h2 className="text-sm font-semibold text-slate-300">AI Settings</h2>
+        </div>
+
+        {/* API Key */}
+        <div>
+          <label className="text-xs text-slate-400 font-medium">
+            Anthropic API Key
+          </label>
+          <input
+            type="password"
+            value={aiSettings.apiKey}
+            onChange={(e) =>
+              setAiSettingsState({ ...aiSettings, apiKey: e.target.value })
+            }
+            placeholder="sk-ant-..."
+            className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500 font-mono"
+          />
+          <p className="text-[10px] text-slate-500 mt-1">
+            Get your key at{" "}
+            <span className="text-violet-400">console.anthropic.com</span>
+            {" · "}Stored locally on your device
+          </p>
+        </div>
+
+        {/* Model Selector */}
+        <div>
+          <label className="text-xs text-slate-400 font-medium mb-2 block">
+            Model
+          </label>
+          <div className="space-y-1.5">
+            {AI_MODELS.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() =>
+                  setAiSettingsState({ ...aiSettings, model: m.id })
+                }
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition ${
+                  aiSettings.model === m.id
+                    ? "bg-violet-600/20 border border-violet-500/30"
+                    : "bg-slate-700 border border-transparent"
+                }`}
+              >
+                <div>
+                  <p className="text-xs font-medium text-white">{m.name}</p>
+                  <p className="text-[10px] text-slate-400">{m.desc}</p>
+                </div>
+                <span className="text-[10px] text-slate-500 shrink-0 ml-2">
+                  {m.costNote}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Save + Test */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              saveAiSettings(aiSettings);
+              setToast("AI settings saved!");
+            }}
+            className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
+          >
+            <Sparkles size={13} /> Save AI Settings
+          </button>
+          <button
+            onClick={async () => {
+              setAiTestStatus("testing");
+              setAiTestError("");
+              // Save first so askAI reads the latest settings
+              saveAiSettings(aiSettings);
+              try {
+                await askAI({ system: "Reply with just OK.", userMessage: "Test", maxTokens: 16 });
+                setAiTestStatus("success");
+              } catch (err) {
+                setAiTestStatus("error");
+                setAiTestError(err instanceof Error ? err.message : "Connection failed");
+              }
+            }}
+            disabled={aiTestStatus === "testing"}
+            className="px-4 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5"
+          >
+            {aiTestStatus === "testing" ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : aiTestStatus === "success" ? (
+              <CheckCircle size={13} className="text-green-400" />
+            ) : aiTestStatus === "error" ? (
+              <XCircle size={13} className="text-red-400" />
+            ) : (
+              <Zap size={13} />
+            )}
+            Test
+          </button>
+        </div>
+        {aiTestStatus === "error" && aiTestError && (
+          <p className="text-[10px] text-red-400">{aiTestError}</p>
+        )}
+        {aiTestStatus === "success" && (
+          <p className="text-[10px] text-green-400">Connection successful!</p>
+        )}
+      </div>
+
       <div className="bg-slate-800 rounded-2xl p-4">
         <h2 className="text-sm font-semibold text-slate-300 mb-2">About</h2>
         <p className="text-xs text-slate-400 leading-relaxed">
           FitLife v2.0 — Your personal health and fitness tracker. Data is stored
-          locally on your device. Supports multiple profiles.
+          locally on your device. Supports multiple profiles and AI-powered features.
         </p>
       </div>
     </div>

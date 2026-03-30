@@ -528,9 +528,50 @@ export function clearCheckedGrocery(): void {
   globalSet("fitlife_grocery", items);
 }
 
+// --- AI Settings (global, shared across profiles) ---
+export interface AiSettings {
+  apiKey: string;
+  model: string;
+}
+
+export const AI_MODELS = [
+  { id: "claude-sonnet-4-20250514", name: "Sonnet 4", desc: "Fast & affordable — recommended", costNote: "~$0.01/request" },
+  { id: "claude-opus-4-20250514", name: "Opus 4", desc: "Most capable — slower", costNote: "~$0.10/request" },
+  { id: "claude-haiku-3-5-20241022", name: "Haiku 3.5", desc: "Fastest & cheapest", costNote: "~$0.002/request" },
+] as const;
+
+const DEFAULT_AI_SETTINGS: AiSettings = { apiKey: "", model: "claude-sonnet-4-20250514" };
+
+export function getAiSettings(): AiSettings {
+  return { ...DEFAULT_AI_SETTINGS, ...globalGet<Partial<AiSettings>>("fitlife_ai_settings", {}) };
+}
+
+export function saveAiSettings(settings: AiSettings): void {
+  globalSet("fitlife_ai_settings", settings);
+}
+
+// --- Coach Chat History (profile-scoped) ---
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+export function getChatHistory(): ChatMessage[] {
+  return getItem<ChatMessage[]>("coach_chat", []);
+}
+
+export function saveChatHistory(messages: ChatMessage[]): void {
+  setItem("coach_chat", messages);
+}
+
+export function clearChatHistory(): void {
+  setItem("coach_chat", []);
+}
+
 // --- Data Management ---
 const PROFILE_DATA_KEYS = [
-  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos",
+  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat",
 ];
 
 export function exportProfileData(): string {

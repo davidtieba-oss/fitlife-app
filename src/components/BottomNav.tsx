@@ -8,6 +8,7 @@ import {
   Dumbbell,
   TrendingUp,
   ShoppingCart,
+  MessageCircle,
 } from "lucide-react";
 
 const tabs = [
@@ -16,6 +17,7 @@ const tabs = [
   { href: "/workouts", label: "Workouts", icon: Dumbbell },
   { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/grocery", label: "Grocery", icon: ShoppingCart },
+  { href: "/coach", label: "Coach", icon: MessageCircle },
 ];
 
 export default function BottomNav() {
@@ -30,12 +32,12 @@ export default function BottomNav() {
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 transition-colors ${
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${
                 active ? "text-teal-400" : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              <Icon size={22} strokeWidth={active ? 2.5 : 1.8} />
-              <span className="text-[10px] font-medium">{label}</span>
+              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
+              <span className="text-[9px] font-medium">{label}</span>
             </Link>
           );
         })}
