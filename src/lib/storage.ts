@@ -597,7 +597,6 @@ export function clearCheckedGrocery(): void {
 
 // --- AI Settings (global, shared across profiles) ---
 export interface AiSettings {
-  apiKey: string;
   model: string;
 }
 
@@ -614,7 +613,7 @@ export const AI_MODELS_FALLBACK: AiModelInfo[] = [
   { id: "claude-opus-4-6", name: "Opus 4.6", desc: "Most capable", costNote: "~$0.05/request" },
 ];
 
-const DEFAULT_AI_SETTINGS: AiSettings = { apiKey: "", model: "claude-sonnet-4-6" };
+const DEFAULT_AI_SETTINGS: AiSettings = { model: "claude-sonnet-4-6" };
 
 export function getAiSettings(): AiSettings {
   return { ...DEFAULT_AI_SETTINGS, ...globalGet<Partial<AiSettings>>("fitlife_ai_settings", {}) };
