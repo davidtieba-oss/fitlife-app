@@ -696,9 +696,77 @@ export function getPlannedWorkoutForDay(dayName: string): PlanDay | null {
   return plan.days.find((d) => d.day.toLowerCase() === dayName.toLowerCase()) ?? null;
 }
 
+// --- Meal Plans ---
+export interface MealPlanMeal {
+  type: string;
+  name: string;
+  description: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  ingredients: string[];
+}
+
+export interface MealPlanDay {
+  day: string;
+  meals: MealPlanMeal[];
+}
+
+export interface MealPlanGroceryItem {
+  item: string;
+  quantity: string;
+  category: string;
+}
+
+export interface MealPlan {
+  id: string;
+  createdAt: string;
+  preferences: {
+    diet: string;
+    mealsPerDay: number;
+    days: number;
+    allergies: string;
+    cuisine: string;
+  };
+  days: MealPlanDay[];
+  grocery_list: MealPlanGroceryItem[];
+}
+
+export function getMealPlans(): MealPlan[] {
+  return getItem<MealPlan[]>("meal_plans", []);
+}
+
+export function saveMealPlan(plan: Omit<MealPlan, "id" | "createdAt">): MealPlan {
+  const plans = getMealPlans();
+  const newPlan: MealPlan = {
+    ...plan,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  };
+  plans.unshift(newPlan);
+  setItem("meal_plans", plans);
+  return newPlan;
+}
+
+export function updateMealPlanDay(planId: string, dayIndex: number, newDay: MealPlanDay): void {
+  const plans = getMealPlans().map((p) => {
+    if (p.id !== planId) return p;
+    const days = [...p.days];
+    days[dayIndex] = newDay;
+    return { ...p, days };
+  });
+  setItem("meal_plans", plans);
+}
+
+export function deleteMealPlan(id: string): void {
+  const plans = getMealPlans().filter((p) => p.id !== id);
+  setItem("meal_plans", plans);
+}
+
 // --- Data Management ---
 const PROFILE_DATA_KEYS = [
-  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat", "measurements", "training_plans",
+  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat", "measurements", "training_plans", "meal_plans",
 ];
 
 export function exportProfileData(): string {

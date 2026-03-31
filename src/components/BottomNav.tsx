@@ -9,12 +9,14 @@ import {
   TrendingUp,
   ShoppingCart,
   MessageCircle,
+  CalendarDays,
 } from "lucide-react";
 
 const tabs = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/log", label: "Log", icon: ClipboardList },
   { href: "/workouts", label: "Workouts", icon: Dumbbell },
+  { href: "/plan", label: "Plan", icon: CalendarDays },
   { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/grocery", label: "Grocery", icon: ShoppingCart },
   { href: "/coach", label: "Coach", icon: MessageCircle },
@@ -32,12 +34,12 @@ export default function BottomNav() {
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 transition-colors ${
+              className={`flex flex-col items-center gap-0.5 px-1 py-1 transition-colors ${
                 active ? "text-teal-400" : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
-              <span className="text-[9px] font-medium">{label}</span>
+              <Icon size={18} strokeWidth={active ? 2.5 : 1.8} />
+              <span className="text-[8px] font-medium">{label}</span>
             </Link>
           );
         })}
