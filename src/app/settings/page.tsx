@@ -100,18 +100,17 @@ export default function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
 
   // AI settings state
-  const [aiSettings, setAiSettingsState] = useState<AiSettings>({ apiKey: "", model: "claude-sonnet-4-6" });
+  const [aiSettings, setAiSettingsState] = useState<AiSettings>({ model: "claude-sonnet-4-6" });
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [aiTestStatus, setAiTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [aiTestError, setAiTestError] = useState("");
   const [aiModels, setAiModels] = useState<AiModelInfo[]>(AI_MODELS_FALLBACK);
   const [modelsLoading, setModelsLoading] = useState(false);
 
-  async function fetchModels(apiKey: string) {
+  async function fetchModels() {
     setModelsLoading(true);
     try {
-      const headers: Record<string, string> = {};
-      if (apiKey) headers["x-api-key"] = apiKey;
-      const res = await fetch("/api/models", { headers });
+      const res = await fetch("/api/models");
       if (!res.ok) throw new Error("Failed to fetch models");
       const data = await res.json();
       const allModels: Array<{ id: string; display_name?: string; capabilities?: { image_input?: boolean } }> =
@@ -158,6 +157,10 @@ export default function SettingsPage() {
     if (cached && cached.length > 0) {
       setAiModels(cached);
     }
+    fetch("/api/ai/status")
+      .then((r) => r.json())
+      .then((d) => setAiConfigured(d.configured))
+      .catch(() => setAiConfigured(false));
   }, [activeId]);
 
   if (!mounted) {
@@ -667,17 +670,17 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Anthropic API Key</label>
-          <input
-            type="password"
-            value={aiSettings.apiKey}
-            onChange={(e) => setAiSettingsState({ ...aiSettings, apiKey: e.target.value })}
-            placeholder="sk-ant-..."
-            className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 font-mono"
-          />
-          <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
-            Get your key at <span className="text-violet-500 dark:text-violet-400">console.anthropic.com</span> · Stored locally on your device
-          </p>
+          {aiConfigured === null ? (
+            <p className="text-xs text-gray-400 dark:text-slate-500">Checking AI status…</p>
+          ) : aiConfigured ? (
+            <span className="inline-flex items-center gap-1.5 bg-green-500/15 text-green-600 dark:text-green-400 text-xs font-medium px-3 py-1.5 rounded-full">
+              <CheckCircle size={13} /> AI Connected
+            </span>
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+              AI not configured — add <code className="text-violet-500 dark:text-violet-400 font-mono text-[11px]">ANTHROPIC_API_KEY</code> in your hosting environment variables.
+            </p>
+          )}
         </div>
 
         <div>
@@ -685,7 +688,7 @@ export default function SettingsPage() {
             <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Model</label>
             <button
               type="button"
-              onClick={() => fetchModels(aiSettings.apiKey)}
+              onClick={() => fetchModels()}
               disabled={modelsLoading}
               className="flex items-center gap-1 text-[10px] text-violet-500 dark:text-violet-400 hover:text-violet-400 dark:hover:text-violet-300 disabled:opacity-50 transition"
             >
@@ -722,7 +725,7 @@ export default function SettingsPage() {
             onClick={() => {
               saveAiSettings(aiSettings);
               setToast("AI settings saved!");
-              if (aiSettings.apiKey) fetchModels(aiSettings.apiKey);
+              fetchModels();
             }}
             className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
           >
