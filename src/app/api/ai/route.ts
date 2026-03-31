@@ -1,11 +1,9 @@
 export async function POST(request: Request) {
-  // Resolve API key: env var first, then client-provided header
-  const apiKey =
-    process.env.ANTHROPIC_API_KEY || request.headers.get("x-api-key");
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json(
-      { error: "No API key configured. Add your key in Settings → AI Settings, or set ANTHROPIC_API_KEY env var." },
-      { status: 401 }
+      { error: "AI is not configured. Set ANTHROPIC_API_KEY in environment variables." },
+      { status: 500 }
     );
   }
 

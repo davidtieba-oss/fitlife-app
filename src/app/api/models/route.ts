@@ -1,10 +1,9 @@
-export async function GET(request: Request) {
-  const apiKey =
-    process.env.ANTHROPIC_API_KEY || request.headers.get("x-api-key");
+export async function GET() {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json(
-      { error: "No API key available" },
-      { status: 401 }
+      { error: "AI is not configured. Set ANTHROPIC_API_KEY in environment variables." },
+      { status: 500 }
     );
   }
 

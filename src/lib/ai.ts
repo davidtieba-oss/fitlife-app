@@ -15,11 +15,11 @@ interface AskAIChatOptions {
 
 /**
  * Send a single user message (with optional image) to the AI.
- * Reads model and apiKey from localStorage AI settings.
+ * Reads model from localStorage AI settings. API key is server-side only.
  */
 export async function askAI(options: AskAIOptions): Promise<string> {
   const { system, userMessage, imageBase64, maxTokens } = options;
-  const { model, apiKey } = getAiSettings();
+  const { model } = getAiSettings();
 
   let content: unknown;
   if (imageBase64) {
@@ -34,7 +34,7 @@ export async function askAI(options: AskAIOptions): Promise<string> {
     content = userMessage;
   }
 
-  return callAI({ model, apiKey, system, messages: [{ role: "user", content }], maxTokens });
+  return callAI({ model, system, messages: [{ role: "user", content }], maxTokens });
 }
 
 /**
@@ -43,26 +43,20 @@ export async function askAI(options: AskAIOptions): Promise<string> {
  */
 export async function askAIChat(options: AskAIChatOptions): Promise<string> {
   const { system, messages, maxTokens } = options;
-  const { model, apiKey } = getAiSettings();
+  const { model } = getAiSettings();
 
-  return callAI({ model, apiKey, system, messages, maxTokens });
+  return callAI({ model, system, messages, maxTokens });
 }
 
 async function callAI(params: {
   model: string;
-  apiKey: string;
   system?: string;
   messages: Array<{ role: string; content: unknown }>;
   maxTokens?: number;
 }): Promise<string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (params.apiKey) {
-    headers["x-api-key"] = params.apiKey;
-  }
-
   const res = await fetch("/api/ai", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: params.model,
       system: params.system,
