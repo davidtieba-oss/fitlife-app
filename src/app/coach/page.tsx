@@ -49,6 +49,8 @@ export default function CoachPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+
   const loadChat = useCallback(() => {
     setMessages(getChatHistory());
   }, []);
@@ -56,6 +58,10 @@ export default function CoachPage() {
   useEffect(() => {
     setMounted(true);
     loadChat();
+    fetch("/api/ai/status")
+      .then((r) => r.json())
+      .then((d) => setAiConfigured(d.configured))
+      .catch(() => setAiConfigured(false));
   }, [loadChat]);
 
   useEffect(() => {
@@ -69,12 +75,11 @@ export default function CoachPage() {
   }
 
   const aiSettings = getAiSettings();
-  const hasKey = !!aiSettings.apiKey || !!process.env.NEXT_PUBLIC_HAS_API_KEY;
   const models = getCachedModels() ?? AI_MODELS_FALLBACK;
   const modelName = models.find((m) => m.id === aiSettings.model)?.name ?? aiSettings.model;
 
-  // No API key configured
-  if (!hasKey) {
+  // No API key configured on server
+  if (aiConfigured === false) {
     return (
       <div className="space-y-4">
         <h1 className="text-xl font-bold">AI Coach</h1>
@@ -83,17 +88,11 @@ export default function CoachPage() {
             <Sparkles size={28} className="text-violet-400" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">Set up your AI key</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">AI not configured</p>
             <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-              To chat with your fitness coach, add your Anthropic API key in Settings.
+              Add <code className="text-violet-500 dark:text-violet-400 font-mono text-[11px]">ANTHROPIC_API_KEY</code> in your hosting environment variables to enable the AI coach.
             </p>
           </div>
-          <Link
-            href="/settings"
-            className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-xs font-semibold transition"
-          >
-            <Settings size={14} /> Go to AI Settings
-          </Link>
         </div>
       </div>
     );
