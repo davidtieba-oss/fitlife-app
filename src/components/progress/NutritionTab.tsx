@@ -101,8 +101,8 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
   return (
     <div className="space-y-3">
       {/* Calorie chart with target line */}
-      <div className="bg-slate-800 rounded-2xl p-4">
-        <p className="text-xs text-slate-400 font-medium mb-2">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+        <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2">
           Daily Calories (30 days)
         </p>
         {calorieData.length > 0 ? (
@@ -145,7 +145,7 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-36 flex items-center justify-center text-slate-500 text-sm">
+          <div className="h-36 flex items-center justify-center text-gray-400 dark:text-slate-500 text-sm">
             No meal data for this period.
           </div>
         )}
@@ -154,8 +154,8 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
       {/* Average macros pie + adherence */}
       <div className="grid grid-cols-2 gap-3">
         {/* Macro pie */}
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-xs text-slate-400 font-medium mb-1">Avg Macros/Day</p>
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+          <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-1">Avg Macros/Day</p>
           {pieData.length > 0 ? (
             <>
               <div className="flex justify-center">
@@ -183,7 +183,7 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
                       className="w-2 h-2 rounded-full"
                       style={{ backgroundColor: MACRO_COLORS[i] }}
                     />
-                    <span className="text-[9px] text-slate-400">
+                    <span className="text-[9px] text-gray-500 dark:text-slate-400">
                       {d.name} {d.value}g
                     </span>
                   </div>
@@ -191,15 +191,15 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
               </div>
             </>
           ) : (
-            <div className="h-32 flex items-center justify-center text-slate-500 text-xs">
+            <div className="h-32 flex items-center justify-center text-gray-400 dark:text-slate-500 text-xs">
               No data
             </div>
           )}
         </div>
 
         {/* Adherence score */}
-        <div className="bg-slate-800 rounded-2xl p-4 flex flex-col items-center">
-          <p className="text-xs text-slate-400 font-medium mb-2">Adherence</p>
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 flex flex-col items-center">
+          <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2">Adherence</p>
           <div className="relative w-20 h-20 mb-1">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
               <circle
@@ -229,7 +229,7 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
               </span>
             </div>
           </div>
-          <p className="text-[10px] text-slate-400 text-center">
+          <p className="text-[10px] text-gray-500 dark:text-slate-400 text-center">
             {adherence.daysOnTarget}/{adherence.totalDays} days within
             <br />
             ±10% of target
@@ -239,11 +239,11 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
 
       {/* Avg daily summary */}
       {avgMacros.daysWithData > 0 && (
-        <div className="bg-slate-800 rounded-xl px-4 py-2.5 flex items-center justify-between">
-          <span className="text-xs text-slate-400">
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-2.5 flex items-center justify-between">
+          <span className="text-xs text-gray-500 dark:text-slate-400">
             Avg daily ({avgMacros.daysWithData} days)
           </span>
-          <span className="text-xs text-slate-300">
+          <span className="text-xs text-gray-600 dark:text-slate-300">
             {avgMacros.avgCalories} cal · P {avgMacros.avgProtein}g · C{" "}
             {avgMacros.avgCarbs}g · F {avgMacros.avgFat}g
           </span>
@@ -252,9 +252,9 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
 
       {/* Meal history */}
       <div className="space-y-2">
-        <p className="text-xs text-slate-400 font-medium">Meal History</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Meal History</p>
         {mealsByDay.length === 0 ? (
-          <div className="text-center py-8 text-slate-500">
+          <div className="text-center py-8 text-gray-400 dark:text-slate-500">
             <Utensils size={32} className="mx-auto mb-2 opacity-50" />
             <p className="text-sm">No meals logged yet.</p>
           </div>
@@ -278,7 +278,7 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
               .filter((g) => g.items.length > 0);
 
             return (
-              <div key={dayDate} className="bg-slate-800 rounded-xl overflow-hidden">
+              <div key={dayDate} className="bg-gray-100 dark:bg-slate-800 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setExpandedDay(expanded ? null : dayDate)}
                   className="w-full px-4 py-3 flex items-center justify-between text-left"
@@ -287,7 +287,7 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
                     <p className="text-sm font-semibold">
                       {format(parseISO(dayDate), "EEEE, MMM d")}
                     </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                       {dayMeals.length} item{dayMeals.length !== 1 && "s"} ·{" "}
                       <span className={calColor}>
                         {dayMacros.calories} cal ({calPct}%)
@@ -295,13 +295,13 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
                     </p>
                   </div>
                   {expanded ? (
-                    <ChevronUp size={16} className="text-slate-400 shrink-0" />
+                    <ChevronUp size={16} className="text-gray-500 dark:text-slate-400 shrink-0" />
                   ) : (
-                    <ChevronDown size={16} className="text-slate-400 shrink-0" />
+                    <ChevronDown size={16} className="text-gray-500 dark:text-slate-400 shrink-0" />
                   )}
                 </button>
                 {expanded && (
-                  <div className="px-4 pb-3 space-y-2 border-t border-slate-700/50 pt-2">
+                  <div className="px-4 pb-3 space-y-2 border-t border-gray-200/50 dark:border-slate-700/50 pt-2">
                     {grouped.map(({ type, items }) => (
                       <div key={type}>
                         <p className="text-[10px] text-teal-400 font-semibold uppercase tracking-wider mb-1">
@@ -313,17 +313,17 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
                             className="flex items-center justify-between py-1"
                           >
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-white truncate">
+                              <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
                                 {m.foodName}
                               </p>
-                              <p className="text-[10px] text-slate-400">
+                              <p className="text-[10px] text-gray-500 dark:text-slate-400">
                                 {m.calories} cal · P {m.protein}g · C {m.carbs}g · F{" "}
                                 {m.fat}g
                               </p>
                             </div>
                             <button
                               onClick={() => handleDeleteMeal(m.id)}
-                              className="text-slate-500 hover:text-red-400 p-1 transition ml-2"
+                              className="text-gray-400 dark:text-slate-500 hover:text-red-400 p-1 transition ml-2"
                             >
                               <Trash2 size={12} />
                             </button>
@@ -331,11 +331,11 @@ export default function NutritionTab({ meals, settings, onMealsChange }: Props) 
                         ))}
                       </div>
                     ))}
-                    <div className="bg-slate-700/50 rounded-lg px-3 py-2 flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-slate-300 font-medium">
+                    <div className="bg-gray-200/50 dark:bg-slate-700/50 rounded-lg px-3 py-2 flex items-center justify-between mt-1">
+                      <span className="text-[10px] text-gray-600 dark:text-slate-300 font-medium">
                         Day Total
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-[10px] text-gray-500 dark:text-slate-400">
                         {dayMacros.calories} cal · P {dayMacros.protein}g · C{" "}
                         {dayMacros.carbs}g · F {dayMacros.fat}g
                       </span>

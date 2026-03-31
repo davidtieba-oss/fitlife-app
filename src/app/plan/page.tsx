@@ -31,6 +31,7 @@ import {
   type MealPlanMeal,
 } from "@/lib/storage";
 import { askAI } from "@/lib/ai";
+import { ListSkeleton } from "@/components/Skeleton";
 import Toast from "@/components/Toast";
 
 const DIETS = ["No Restriction", "High Protein", "Low Carb", "Mediterranean", "Vegetarian", "Vegan"];
@@ -70,7 +71,7 @@ export default function PlanPage() {
 
   if (!mounted || !settings) {
     return (
-      <div className="h-screen flex items-center justify-center text-slate-500">Loading...</div>
+      <ListSkeleton />
     );
   }
 
@@ -228,26 +229,26 @@ Requirements:
       <h1 className="text-xl font-bold">Meal Plan</h1>
 
       {/* Nutrition targets reference */}
-      <div className="bg-slate-800 rounded-2xl p-4">
-        <p className="text-xs text-slate-400 font-medium mb-2">Daily Targets</p>
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+        <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2">Daily Targets</p>
         <div className="flex items-center gap-4">
           <div className="text-center">
-            <p className="text-lg font-bold text-white">{settings.calorieTarget}</p>
-            <p className="text-[10px] text-slate-400">cal</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{settings.calorieTarget}</p>
+            <p className="text-[10px] text-gray-500 dark:text-slate-400">cal</p>
           </div>
-          <div className="h-8 w-px bg-slate-700" />
+          <div className="h-8 w-px bg-gray-200 dark:bg-slate-700" />
           <div className="flex-1 grid grid-cols-3 gap-2">
             <div className="text-center">
               <p className="text-xs font-bold text-teal-400">{macroTargets.protein}g</p>
-              <p className="text-[9px] text-slate-500">Protein</p>
+              <p className="text-[9px] text-gray-400 dark:text-slate-500">Protein</p>
             </div>
             <div className="text-center">
               <p className="text-xs font-bold text-cyan-400">{macroTargets.carbs}g</p>
-              <p className="text-[9px] text-slate-500">Carbs</p>
+              <p className="text-[9px] text-gray-400 dark:text-slate-500">Carbs</p>
             </div>
             <div className="text-center">
               <p className="text-xs font-bold text-amber-400">{macroTargets.fat}g</p>
-              <p className="text-[9px] text-slate-500">Fat</p>
+              <p className="text-[9px] text-gray-400 dark:text-slate-500">Fat</p>
             </div>
           </div>
         </div>
@@ -265,22 +266,22 @@ Requirements:
             </button>
             <button
               onClick={addToGroceryList}
-              className="flex items-center gap-1 text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition"
+              className="flex items-center gap-1 text-xs bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white px-3 py-1.5 rounded-lg transition"
             >
               <ShoppingCart size={12} /> Add to Grocery
             </button>
           </div>
 
-          <div className="bg-slate-800 rounded-xl px-4 py-2.5 flex items-center justify-between">
+          <div className="bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-2.5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-white">
+              <p className="text-xs font-semibold text-gray-900 dark:text-white">
                 {viewingPlan.days.length}-Day {viewingPlan.preferences.diet} Plan
               </p>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[10px] text-gray-500 dark:text-slate-400">
                 {viewingPlan.preferences.mealsPerDay} meals/day · {viewingPlan.preferences.cuisine} cuisine
               </p>
             </div>
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-gray-400 dark:text-slate-500">
               {format(parseISO(viewingPlan.createdAt), "MMM d")}
             </p>
           </div>
@@ -292,14 +293,14 @@ Requirements:
             const calDiff = totals.calories - settings.calorieTarget;
 
             return (
-              <div key={dayIdx} className="bg-slate-800 rounded-xl overflow-hidden">
+              <div key={dayIdx} className="bg-gray-100 dark:bg-slate-800 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setExpandedDay(isExpanded ? null : dayIdx)}
                   className="w-full px-4 py-3 flex items-center justify-between text-left"
                 >
                   <div>
-                    <p className="text-xs font-semibold text-white">{day.day}</p>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-xs font-semibold text-gray-900 dark:text-white">{day.day}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">
                       {totals.calories} cal · P {totals.protein}g · C {totals.carbs}g · F {totals.fat}g
                     </p>
                   </div>
@@ -309,18 +310,18 @@ Requirements:
                         {calDiff > 0 ? "+" : ""}{Math.round(calDiff)}
                       </span>
                     )}
-                    {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+                    {isExpanded ? <ChevronUp size={16} className="text-gray-500 dark:text-slate-400" /> : <ChevronDown size={16} className="text-gray-500 dark:text-slate-400" />}
                   </div>
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 pb-3 space-y-2 border-t border-slate-700/50 pt-2">
+                  <div className="px-4 pb-3 space-y-2 border-t border-gray-200/50 dark:border-slate-700/50 pt-2">
                     {day.meals.map((meal, mealIdx) => {
                       const mealKey = `${dayIdx}-${mealIdx}`;
                       const mealExpanded = expandedMeal === mealKey;
 
                       return (
-                        <div key={mealIdx} className="bg-slate-700/30 rounded-lg overflow-hidden">
+                        <div key={mealIdx} className="bg-gray-200/30 dark:bg-slate-700/30 rounded-lg overflow-hidden">
                           <button
                             onClick={() => setExpandedMeal(mealExpanded ? null : mealKey)}
                             className="w-full px-3 py-2 text-left"
@@ -328,24 +329,24 @@ Requirements:
                             <div className="flex items-center justify-between">
                               <div className="flex-1 min-w-0">
                                 <p className="text-[10px] text-teal-400 font-semibold">{meal.type}</p>
-                                <p className="text-xs font-medium text-white truncate">{meal.name}</p>
-                                <p className="text-[10px] text-slate-400">
+                                <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{meal.name}</p>
+                                <p className="text-[10px] text-gray-500 dark:text-slate-400">
                                   {Math.round(meal.calories)} cal · P {Math.round(meal.protein_g)}g · C {Math.round(meal.carbs_g)}g · F {Math.round(meal.fat_g)}g
                                 </p>
                               </div>
-                              {mealExpanded ? <ChevronUp size={12} className="text-slate-500" /> : <ChevronDown size={12} className="text-slate-500" />}
+                              {mealExpanded ? <ChevronUp size={12} className="text-gray-400 dark:text-slate-500" /> : <ChevronDown size={12} className="text-gray-400 dark:text-slate-500" />}
                             </div>
                           </button>
 
                           {mealExpanded && (
                             <div className="px-3 pb-2.5 space-y-2">
-                              <p className="text-[10px] text-slate-300">{meal.description}</p>
+                              <p className="text-[10px] text-gray-600 dark:text-slate-300">{meal.description}</p>
                               {meal.ingredients.length > 0 && (
                                 <div>
-                                  <p className="text-[9px] text-slate-500 font-medium mb-0.5">Ingredients</p>
+                                  <p className="text-[9px] text-gray-400 dark:text-slate-500 font-medium mb-0.5">Ingredients</p>
                                   <ul className="space-y-0.5">
                                     {meal.ingredients.map((ing, i) => (
-                                      <li key={i} className="text-[10px] text-slate-400">• {ing}</li>
+                                      <li key={i} className="text-[10px] text-gray-500 dark:text-slate-400">• {ing}</li>
                                     ))}
                                   </ul>
                                 </div>
@@ -363,9 +364,9 @@ Requirements:
                     })}
 
                     {/* Day totals */}
-                    <div className="bg-slate-700/50 rounded-lg px-3 py-2 flex items-center justify-between">
-                      <span className="text-[10px] text-slate-300 font-medium">Day Total</span>
-                      <span className="text-[10px] text-slate-400">
+                    <div className="bg-gray-200/50 dark:bg-slate-700/50 rounded-lg px-3 py-2 flex items-center justify-between">
+                      <span className="text-[10px] text-gray-600 dark:text-slate-300 font-medium">Day Total</span>
+                      <span className="text-[10px] text-gray-500 dark:text-slate-400">
                         {totals.calories} cal · P {totals.protein}g · C {totals.carbs}g · F {totals.fat}g
                       </span>
                     </div>
@@ -374,7 +375,7 @@ Requirements:
                     <button
                       onClick={() => regenerateDay(dayIdx)}
                       disabled={regeneratingDay !== null}
-                      className="w-full flex items-center justify-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 py-1 transition disabled:opacity-40"
+                      className="w-full flex items-center justify-center gap-1 text-[10px] text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 py-1 transition disabled:opacity-40"
                     >
                       {regeneratingDay === dayIdx ? (
                         <><Loader2 size={11} className="animate-spin" /> Regenerating...</>
@@ -390,16 +391,16 @@ Requirements:
 
           {/* Grocery list summary */}
           {viewingPlan.grocery_list.length > 0 && (
-            <div className="bg-slate-800 rounded-xl p-4">
+            <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-300">Grocery List</p>
-                <span className="text-[10px] text-slate-500">{viewingPlan.grocery_list.length} items</span>
+                <p className="text-xs font-semibold text-gray-600 dark:text-slate-300">Grocery List</p>
+                <span className="text-[10px] text-gray-400 dark:text-slate-500">{viewingPlan.grocery_list.length} items</span>
               </div>
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {viewingPlan.grocery_list.map((item, i) => (
                   <div key={i} className="flex items-center justify-between text-[10px]">
-                    <span className="text-slate-300">{item.item}</span>
-                    <span className="text-slate-500">{item.quantity}</span>
+                    <span className="text-gray-600 dark:text-slate-300">{item.item}</span>
+                    <span className="text-gray-400 dark:text-slate-500">{item.quantity}</span>
                   </div>
                 ))}
               </div>
@@ -420,7 +421,7 @@ Requirements:
               setViewingPlan(null);
               setToast("Plan deleted");
             }}
-            className="w-full flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-red-400 py-2 transition"
+            className="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 hover:text-red-400 py-2 transition"
           >
             <Trash2 size={12} /> Delete Plan
           </button>
@@ -430,24 +431,24 @@ Requirements:
           {/* Saved plans */}
           {plans.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-slate-400 font-medium">Saved Plans</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Saved Plans</p>
               {plans.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => { setViewingPlan(p); setExpandedDay(0); setExpandedMeal(null); }}
-                  className="w-full bg-slate-800 rounded-xl px-4 py-3 text-left hover:bg-slate-700/80 transition"
+                  className="w-full bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-3 text-left hover:bg-gray-200/80 dark:hover:bg-slate-700/80 transition"
                 >
                   <div className="flex items-center gap-2">
                     <Calendar size={14} className="text-teal-400 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-white">
+                      <p className="text-xs font-semibold text-gray-900 dark:text-white">
                         {p.days.length}-Day {p.preferences.diet} Plan
                       </p>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-[10px] text-gray-500 dark:text-slate-400">
                         {p.preferences.mealsPerDay} meals/day · {p.preferences.cuisine} · {format(parseISO(p.createdAt), "MMM d, yyyy")}
                       </p>
                     </div>
-                    <ChevronDown size={14} className="text-slate-500 -rotate-90 shrink-0" />
+                    <ChevronDown size={14} className="text-gray-400 dark:text-slate-500 -rotate-90 shrink-0" />
                   </div>
                 </button>
               ))}
@@ -455,21 +456,21 @@ Requirements:
           )}
 
           {/* Generator form */}
-          <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+          <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
             <div className="flex items-center gap-2 mb-1">
               <Sparkles size={14} className="text-violet-400" />
-              <p className="text-xs font-semibold text-white">Generate Meal Plan</p>
+              <p className="text-xs font-semibold text-gray-900 dark:text-white">Generate Meal Plan</p>
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-400 font-medium">Diet Type</label>
+              <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Diet Type</label>
               <div className="grid grid-cols-3 gap-1.5 mt-1">
                 {DIETS.map((d) => (
                   <button
                     key={d}
                     onClick={() => setDiet(d)}
                     className={`py-2 rounded-lg text-[10px] font-medium transition ${
-                      diet === d ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                      diet === d ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                     }`}
                   >
                     {d}
@@ -479,14 +480,14 @@ Requirements:
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-400 font-medium">Meals Per Day</label>
+              <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Meals Per Day</label>
               <div className="grid grid-cols-3 gap-1.5 mt-1">
                 {MEALS_PER_DAY.map((m) => (
                   <button
                     key={m}
                     onClick={() => setMealsPerDay(m)}
                     className={`py-2 rounded-lg text-xs font-medium transition ${
-                      mealsPerDay === m ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                      mealsPerDay === m ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                     }`}
                   >
                     {m}
@@ -496,14 +497,14 @@ Requirements:
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-400 font-medium">Days to Plan</label>
+              <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Days to Plan</label>
               <div className="grid grid-cols-4 gap-1.5 mt-1">
                 {PLAN_DAYS.map((d) => (
                   <button
                     key={d}
                     onClick={() => setPlanDays(d)}
                     className={`py-2 rounded-lg text-xs font-medium transition ${
-                      planDays === d ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                      planDays === d ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                     }`}
                   >
                     {d} day{d > 1 ? "s" : ""}
@@ -513,14 +514,14 @@ Requirements:
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-400 font-medium">Cuisine Preference</label>
+              <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Cuisine Preference</label>
               <div className="grid grid-cols-3 gap-1.5 mt-1">
                 {CUISINES.map((c) => (
                   <button
                     key={c}
                     onClick={() => setCuisine(c)}
                     className={`py-2 rounded-lg text-[10px] font-medium transition ${
-                      cuisine === c ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                      cuisine === c ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                     }`}
                   >
                     {c}
@@ -530,13 +531,13 @@ Requirements:
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-400 font-medium">Allergies / Exclusions (optional)</label>
+              <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Allergies / Exclusions (optional)</label>
               <textarea
                 value={allergies}
                 onChange={(e) => setAllergies(e.target.value)}
                 placeholder="e.g., no shellfish, lactose intolerant, no nuts..."
                 rows={2}
-                className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none"
               />
             </div>
 
@@ -554,7 +555,7 @@ Requirements:
               )}
             </button>
 
-            <p className="text-[10px] text-slate-500 text-center">
+            <p className="text-[10px] text-gray-400 dark:text-slate-500 text-center">
               AI plans are suggestions — adjust portions to your needs
             </p>
           </div>

@@ -197,6 +197,41 @@ export interface UserSettings {
   carbsPct: number;
   fatPct: number;
   weightGoal: WeightGoal;
+  age?: number;
+  height?: number;
+  gender?: string;
+  targetWeight?: number;
+}
+
+// --- Theme ---
+export type ThemeMode = "system" | "dark" | "light";
+
+export function getTheme(): ThemeMode {
+  if (typeof window === "undefined") return "system";
+  return (localStorage.getItem("fitlife_theme") as ThemeMode) || "system";
+}
+
+export function setTheme(mode: ThemeMode): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("fitlife_theme", mode);
+}
+
+// --- Reminders ---
+export interface ReminderSettings {
+  weighIn: boolean;
+  meals: boolean;
+  workout: boolean;
+  water: boolean;
+}
+
+const DEFAULT_REMINDERS: ReminderSettings = { weighIn: false, meals: false, workout: false, water: false };
+
+export function getReminders(): ReminderSettings {
+  return { ...DEFAULT_REMINDERS, ...getItem<Partial<ReminderSettings>>("reminders", {}) };
+}
+
+export function saveReminders(reminders: ReminderSettings): void {
+  setItem("reminders", reminders);
 }
 
 function key(name: string): string {
@@ -766,7 +801,7 @@ export function deleteMealPlan(id: string): void {
 
 // --- Data Management ---
 const PROFILE_DATA_KEYS = [
-  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat", "measurements", "training_plans", "meal_plans",
+  "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat", "measurements", "training_plans", "meal_plans", "reminders",
 ];
 
 export function exportProfileData(): string {
@@ -799,4 +834,53 @@ export function clearProfileData(): void {
   for (const name of PROFILE_DATA_KEYS) {
     localStorage.removeItem(key(name));
   }
+}
+
+// --- Streak & Activity Utilities ---
+
+function formatDateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export function computeStreak(): number {
+  const metricDates = new Set(getMetrics().map((m) => m.date));
+  const mealDates = new Set(getMeals().map((m) => m.date));
+  const workoutDates = new Set(getWorkouts().map((w) => w.date));
+
+  let streak = 0;
+  const now = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dk = formatDateKey(d);
+    if (metricDates.has(dk) || mealDates.has(dk) || workoutDates.has(dk)) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+export function getActivityDaysThisWeek(): Set<number> {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+
+  const metricDates = new Set(getMetrics().map((m) => m.date));
+  const mealDates = new Set(getMeals().map((m) => m.date));
+  const workoutDates = new Set(getWorkouts().map((w) => w.date));
+
+  const activeDays = new Set<number>();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dk = formatDateKey(d);
+    if (metricDates.has(dk) || mealDates.has(dk) || workoutDates.has(dk)) {
+      activeDays.add(i); // 0=Mon, 6=Sun
+    }
+  }
+  return activeDays;
 }

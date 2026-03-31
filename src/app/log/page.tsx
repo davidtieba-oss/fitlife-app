@@ -14,6 +14,7 @@ import {
   Pencil,
   X,
   Ruler,
+  Search,
 } from "lucide-react";
 import { askAI } from "@/lib/ai";
 import {
@@ -36,6 +37,7 @@ import {
   type MeasurementEntry,
 } from "@/lib/storage";
 import Toast from "@/components/Toast";
+import { ListSkeleton } from "@/components/Skeleton";
 
 type Tab = "metrics" | "meals" | "measurements";
 type AiMode = "idle" | "text" | "photo" | "loading" | "preview";
@@ -90,6 +92,13 @@ export default function LogPage() {
   const [aiError, setAiError] = useState("");
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // Search & filter state
+  const [mealSearch, setMealSearch] = useState("");
+  const [mealDateFrom, setMealDateFrom] = useState("");
+  const [mealDateTo, setMealDateTo] = useState("");
+  const [measDateFrom, setMeasDateFrom] = useState("");
+  const [measDateTo, setMeasDateTo] = useState("");
+
   // Measurements state
   const [measureDate, setMeasureDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [measurements, setMeasurementsState] = useState<MeasurementEntry[]>([]);
@@ -114,11 +123,7 @@ export default function LogPage() {
   }, [mealDate, mounted, refreshMeals]);
 
   if (!mounted) {
-    return (
-      <div className="h-screen flex items-center justify-center text-slate-500">
-        Loading...
-      </div>
-    );
+    return <ListSkeleton />;
   }
 
   // Quick macro estimate: given calories and protein, split remaining between carbs and fat
@@ -326,13 +331,13 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
       <h1 className="text-xl font-bold">Log</h1>
 
       {/* Tab switcher */}
-      <div className="flex bg-slate-800 rounded-xl p-1">
+      <div className="flex bg-gray-100 dark:bg-slate-800 rounded-xl p-1">
         {(["metrics", "meals", "measurements"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${
-              tab === t ? "bg-teal-600 text-white" : "text-slate-400"
+              tab === t ? "bg-teal-600 text-white" : "text-gray-500 dark:text-slate-400"
             }`}
           >
             {t === "metrics" ? "Body Metrics" : t === "meals" ? "Meals" : "Measurements"}
@@ -345,51 +350,53 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
         <div className="space-y-4">
           <form
             onSubmit={handleMetricSubmit}
-            className="bg-slate-800 rounded-2xl p-4 space-y-4"
+            className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-4"
           >
             <div>
-              <label className="text-xs text-slate-400 font-medium">Date</label>
+              <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Date</label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400 font-medium">
+              <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                 Weight (kg) *
               </label>
               <input
                 type="number"
                 step="0.1"
+                inputMode="decimal"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 placeholder="72.5"
-                className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
               />
               {errors.weight && (
                 <p className="text-xs text-red-400 mt-1">{errors.weight}</p>
               )}
             </div>
             <div>
-              <label className="text-xs text-slate-400 font-medium">
+              <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                 Body Fat % (optional)
               </label>
               <input
                 type="number"
                 step="0.1"
+                inputMode="decimal"
                 value={bodyFat}
                 onChange={(e) => setBodyFat(e.target.value)}
                 placeholder="18.5"
-                className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
               />
               {errors.bodyFat && (
                 <p className="text-xs text-red-400 mt-1">{errors.bodyFat}</p>
               )}
             </div>
             <div>
-              <label className="text-xs text-slate-400 font-medium">
+              <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                 Notes (optional)
               </label>
               <textarea
@@ -397,7 +404,7 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
                 placeholder="Feeling good today..."
-                className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 resize-none"
               />
             </div>
             <button
@@ -410,11 +417,11 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
 
           {/* Recent Entries */}
           <div>
-            <h2 className="text-sm font-semibold text-slate-300 mb-2">
+            <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-2">
               Recent Entries
             </h2>
             {metrics.length === 0 ? (
-              <p className="text-sm text-slate-500">No entries yet.</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500">No entries yet.</p>
             ) : (
               <div className="space-y-2">
                 {metrics.slice(0, 10).map((m, i) => {
@@ -423,18 +430,18 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
                   return (
                     <div
                       key={m.id}
-                      className="bg-slate-800 rounded-xl px-4 py-3 flex items-center justify-between"
+                      className="bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-3 flex items-center justify-between"
                     >
                       <div>
                         <p className="text-sm font-medium">
                           {format(parseISO(m.date), "MMM d, yyyy")}
                         </p>
                         <div className="flex items-center gap-3 mt-0.5">
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-gray-500 dark:text-slate-400">
                             {m.weight} kg
                           </span>
                           {m.bodyFat !== undefined && (
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-gray-500 dark:text-slate-400">
                               {m.bodyFat}% BF
                             </span>
                           )}
@@ -459,7 +466,7 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
                           deleteMetric(m.id);
                           refreshMetrics();
                         }}
-                        className="text-slate-500 hover:text-red-400 p-1 transition"
+                        className="text-gray-400 dark:text-slate-500 hover:text-red-400 p-1 transition"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -476,23 +483,23 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
       {tab === "meals" && (
         <div className="space-y-4">
           {/* Daily totals */}
-          <div className="bg-slate-800 rounded-2xl p-4">
+          <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-slate-400 font-medium">Daily Totals</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Daily Totals</p>
               <input
                 type="date"
                 value={mealDate}
                 onChange={(e) => setMealDate(e.target.value)}
-                className="bg-slate-700 rounded-lg px-2 py-1 text-xs text-white outline-none"
+                className="bg-gray-200 dark:bg-slate-700 rounded-lg px-2 py-1 text-xs text-gray-900 dark:text-white outline-none"
               />
             </div>
             <div className="flex items-end gap-1.5 mb-2">
               <span className="text-2xl font-bold">{dailyMacros.calories}</span>
-              <span className="text-xs text-slate-400 mb-1">
+              <span className="text-xs text-gray-500 dark:text-slate-400 mb-1">
                 / {settings.calorieTarget} cal
               </span>
             </div>
-            <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mb-3">
+            <div className="h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden mb-3">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   dailyMacros.calories > settings.calorieTarget
@@ -550,7 +557,7 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
           {/* Meal form */}
           <form
             onSubmit={handleMealSubmit}
-            className="bg-slate-800 rounded-2xl p-4 space-y-3"
+            className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3"
           >
             {/* Meal type */}
             <div className="grid grid-cols-4 gap-1.5">
@@ -562,7 +569,7 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
                   className={`py-1.5 rounded-lg text-xs font-medium transition ${
                     mealType === type
                       ? "bg-teal-600 text-white"
-                      : "bg-slate-700 text-slate-400"
+                      : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                   }`}
                 >
                   {type}
@@ -570,7 +577,7 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
               ))}
             </div>
             <div>
-              <label className="text-xs text-slate-400 font-medium">
+              <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                 Food name *
               </label>
               <input
@@ -578,66 +585,70 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
                 value={foodName}
                 onChange={(e) => setFoodName(e.target.value)}
                 placeholder="Chicken breast"
-                className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-slate-400 font-medium">
+                <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                   Calories *
                 </label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={mealCals}
                   onChange={(e) => {
                     setMealCals(e.target.value);
                     autoEstimateMacros(e.target.value, protein);
                   }}
                   placeholder="350"
-                  className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-400 font-medium">
+                <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                   Protein (g)
                 </label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={protein}
                   onChange={(e) => {
                     setProtein(e.target.value);
                     autoEstimateMacros(mealCals, e.target.value);
                   }}
                   placeholder="30"
-                  className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-400 font-medium">
+                <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                   Carbs (g)
                 </label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={carbs}
                   onChange={(e) => setCarbs(e.target.value)}
                   placeholder="40"
-                  className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-400 font-medium">
+                <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                   Fat (g)
                 </label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={fat}
                   onChange={(e) => setFat(e.target.value)}
                   placeholder="12"
-                  className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>
             </div>
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-gray-400 dark:text-slate-500">
               Enter calories + protein to auto-estimate carbs/fat
             </p>
             <button
@@ -653,8 +664,8 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
           {recentFoods.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-2">
-                <Clock size={13} className="text-slate-500" />
-                <h2 className="text-sm font-semibold text-slate-300">
+                <Clock size={13} className="text-gray-400 dark:text-slate-500" />
+                <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">
                   Quick Add
                 </h2>
               </div>
@@ -663,12 +674,12 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
                   <button
                     key={i}
                     onClick={() => handleQuickAdd(food)}
-                    className="shrink-0 bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 text-left transition"
+                    className="shrink-0 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl px-3 py-2 text-left transition"
                   >
-                    <p className="text-xs font-medium text-white truncate max-w-[120px]">
+                    <p className="text-xs font-medium text-gray-900 dark:text-white truncate max-w-[120px]">
                       {food.foodName}
                     </p>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">
                       {food.calories} cal · {food.protein}g P
                     </p>
                   </button>
@@ -679,62 +690,98 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
 
           {/* Today's meals by type */}
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-300">
+            <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">
               {mealDate === format(new Date(), "yyyy-MM-dd")
                 ? "Today's Meals"
                 : format(parseISO(mealDate), "MMM d") + " Meals"}
             </h2>
-            {mealsByType.length === 0 ? (
-              <p className="text-sm text-slate-500">No meals logged for this day.</p>
-            ) : (
-              mealsByType.map(({ type, meals: typeMeals }) => (
-                <div key={type} className="bg-slate-800 rounded-xl p-3">
-                  <p className="text-xs text-teal-400 font-semibold mb-1.5">
-                    {type}
-                  </p>
-                  <div className="space-y-1.5">
-                    {typeMeals.map((m) => (
-                      <div
-                        key={m.id}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-white truncate">
-                            {m.foodName}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            {m.calories} cal · P {m.protein}g · C {m.carbs}g · F{" "}
-                            {m.fat}g
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            deleteMeal(m.id);
-                            refreshMeals();
-                          }}
-                          className="text-slate-500 hover:text-red-400 p-1 transition ml-2"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
 
-            {/* Daily totals row */}
-            {mealsByType.length > 0 && (
-              <div className="bg-slate-700/50 rounded-xl px-3 py-2 flex items-center justify-between">
-                <span className="text-xs text-slate-300 font-medium">
-                  Day Total
-                </span>
-                <span className="text-xs text-slate-400">
-                  {dailyMacros.calories} cal · P {dailyMacros.protein}g · C{" "}
-                  {dailyMacros.carbs}g · F {dailyMacros.fat}g
-                </span>
+            {/* Search & date filter */}
+            <div className="space-y-2">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" />
+                <input
+                  type="text"
+                  value={mealSearch}
+                  onChange={(e) => setMealSearch(e.target.value)}
+                  placeholder="Search foods..."
+                  className="w-full bg-gray-100 dark:bg-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-teal-500"
+                />
               </div>
-            )}
+              <div className="flex gap-2">
+                <input type="date" value={mealDateFrom} onChange={(e) => setMealDateFrom(e.target.value)} className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500" />
+                <input type="date" value={mealDateTo} onChange={(e) => setMealDateTo(e.target.value)} className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500" />
+              </div>
+            </div>
+
+            {(() => {
+              const filteredMeals = todayMeals.filter((m) => {
+                if (mealSearch && !m.foodName.toLowerCase().includes(mealSearch.toLowerCase())) return false;
+                if (mealDateFrom && m.date < mealDateFrom) return false;
+                if (mealDateTo && m.date > mealDateTo) return false;
+                return true;
+              });
+              const filteredMealsByType = MEAL_TYPES.map((type) => ({
+                type,
+                meals: filteredMeals.filter((m) => m.mealType === type),
+              })).filter((g) => g.meals.length > 0);
+
+              return (
+                <>
+                  {filteredMealsByType.length === 0 ? (
+                    <p className="text-sm text-gray-400 dark:text-slate-500">No meals logged for this day.</p>
+                  ) : (
+                    filteredMealsByType.map(({ type, meals: typeMeals }) => (
+                      <div key={type} className="bg-gray-100 dark:bg-slate-800 rounded-xl p-3">
+                        <p className="text-xs text-teal-400 font-semibold mb-1.5">
+                          {type}
+                        </p>
+                        <div className="space-y-1.5">
+                          {typeMeals.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
+                                  {m.foodName}
+                                </p>
+                                <p className="text-[10px] text-gray-500 dark:text-slate-400">
+                                  {m.calories} cal · P {m.protein}g · C {m.carbs}g · F{" "}
+                                  {m.fat}g
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  deleteMeal(m.id);
+                                  refreshMeals();
+                                }}
+                                className="text-gray-400 dark:text-slate-500 hover:text-red-400 p-1 transition ml-2"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  {/* Daily totals row */}
+                  {filteredMealsByType.length > 0 && (
+                    <div className="bg-gray-200/50 dark:bg-slate-700/50 rounded-xl px-3 py-2 flex items-center justify-between">
+                      <span className="text-xs text-gray-600 dark:text-slate-300 font-medium">
+                        Day Total
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
+                        {dailyMacros.calories} cal · P {dailyMacros.protein}g · C{" "}
+                        {dailyMacros.carbs}g · F {dailyMacros.fat}g
+                      </span>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -747,6 +794,10 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
           measurements={measurements}
           fields={measureFields}
           onFieldsChange={setMeasureFields}
+          measDateFrom={measDateFrom}
+          measDateTo={measDateTo}
+          onMeasDateFromChange={setMeasDateFrom}
+          onMeasDateToChange={setMeasDateTo}
           onSave={() => {
             const hasAny = MEASURE_FIELDS.some((f) => measureFields[f.key]?.trim());
             if (!hasAny) return;
@@ -794,6 +845,10 @@ function MeasurementsSection({
   measurements,
   fields,
   onFieldsChange,
+  measDateFrom,
+  measDateTo,
+  onMeasDateFromChange,
+  onMeasDateToChange,
   onSave,
   onDelete,
 }: {
@@ -802,6 +857,10 @@ function MeasurementsSection({
   measurements: MeasurementEntry[];
   fields: Record<string, string>;
   onFieldsChange: (f: Record<string, string>) => void;
+  measDateFrom: string;
+  measDateTo: string;
+  onMeasDateFromChange: (v: string) => void;
+  onMeasDateToChange: (v: string) => void;
   onSave: () => void;
   onDelete: (id: string) => void;
   toast: string;
@@ -814,29 +873,30 @@ function MeasurementsSection({
   return (
     <div className="space-y-4">
       {/* Form */}
-      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <Ruler size={14} className="text-teal-400" />
-          <p className="text-xs font-semibold text-white">Body Measurements (cm)</p>
+          <p className="text-xs font-semibold text-gray-900 dark:text-white">Body Measurements (cm)</p>
         </div>
 
         <div>
-          <label className="text-xs text-slate-400 font-medium">Date</label>
+          <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Date</label>
           <input
             type="date"
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
-            className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+            className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
 
         <div className="grid grid-cols-3 gap-2">
           {MEASURE_FIELDS.map((f) => (
             <div key={f.key}>
-              <label className="text-[10px] text-slate-400 font-medium">{f.label}</label>
+              <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{f.label}</label>
               <input
                 type="number"
                 step="0.1"
+                inputMode="decimal"
                 value={fields[f.key] || ""}
                 onChange={(e) => onFieldsChange({ ...fields, [f.key]: e.target.value })}
                 placeholder={
@@ -844,7 +904,7 @@ function MeasurementsSection({
                     ? String((lastEntry as unknown as Record<string, unknown>)[f.key] || "")
                     : ""
                 }
-                className="w-full mt-0.5 bg-slate-700 rounded-lg px-2 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full mt-0.5 bg-gray-200 dark:bg-slate-700 rounded-lg px-2 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
           ))}
@@ -861,8 +921,8 @@ function MeasurementsSection({
 
       {/* Comparison card */}
       {currentEntry && prevEntry && currentEntry.id !== prevEntry.id && (
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-xs font-semibold text-slate-300 mb-2">Changes</p>
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-gray-600 dark:text-slate-300 mb-2">Changes</p>
           <div className="grid grid-cols-3 gap-2">
             {MEASURE_FIELDS.map((f) => {
               const curr = (currentEntry as unknown as Record<string, unknown>)[f.key] as number | undefined;
@@ -871,8 +931,8 @@ function MeasurementsSection({
               const diff = curr - prev;
               return (
                 <div key={f.key} className="text-center">
-                  <p className="text-[10px] text-slate-400">{f.label}</p>
-                  <p className="text-xs font-medium text-white">{curr} cm</p>
+                  <p className="text-[10px] text-gray-500 dark:text-slate-400">{f.label}</p>
+                  <p className="text-xs font-medium text-gray-900 dark:text-white">{curr} cm</p>
                   {diff !== 0 && (
                     <p className={`text-[10px] flex items-center justify-center gap-0.5 ${diff > 0 ? "text-orange-400" : "text-green-400"}`}>
                       {diff > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
@@ -888,34 +948,48 @@ function MeasurementsSection({
 
       {/* Recent entries */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-300 mb-2">Recent Measurements</h2>
-        {measurements.length === 0 ? (
-          <p className="text-sm text-slate-500">No measurements yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {measurements.slice(0, 5).map((m) => {
-              const fields_present = MEASURE_FIELDS.filter(
-                (f) => (m as unknown as Record<string, unknown>)[f.key] != null
-              );
-              return (
-                <div key={m.id} className="bg-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">{format(parseISO(m.date), "MMM d, yyyy")}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {fields_present.map((f) => `${f.label}: ${(m as unknown as Record<string, unknown>)[f.key]}cm`).join(" · ")}
-                    </p>
+        <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-2">Recent Measurements</h2>
+
+        {/* Date range filter */}
+        <div className="flex gap-2 mb-2">
+          <input type="date" value={measDateFrom} onChange={(e) => onMeasDateFromChange(e.target.value)} className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500" />
+          <input type="date" value={measDateTo} onChange={(e) => onMeasDateToChange(e.target.value)} className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500" />
+        </div>
+
+        {(() => {
+          const filteredMeasurements = measurements.filter((m) => {
+            if (measDateFrom && m.date < measDateFrom) return false;
+            if (measDateTo && m.date > measDateTo) return false;
+            return true;
+          });
+          return filteredMeasurements.length === 0 ? (
+            <p className="text-sm text-gray-400 dark:text-slate-500">No measurements yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {filteredMeasurements.slice(0, 5).map((m) => {
+                const fields_present = MEASURE_FIELDS.filter(
+                  (f) => (m as unknown as Record<string, unknown>)[f.key] != null
+                );
+                return (
+                  <div key={m.id} className="bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">{format(parseISO(m.date), "MMM d, yyyy")}</p>
+                      <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">
+                        {fields_present.map((f) => `${f.label}: ${(m as unknown as Record<string, unknown>)[f.key]}cm`).join(" · ")}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => onDelete(m.id)}
+                      className="text-gray-400 dark:text-slate-500 hover:text-red-400 p-1 transition"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => onDelete(m.id)}
-                    className="text-slate-500 hover:text-red-400 p-1 transition"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
@@ -956,7 +1030,7 @@ function AiMealSection({
         <p className="text-xs text-red-400 mb-2">{aiError}</p>
         <button
           onClick={onCancel}
-          className="text-xs text-slate-400 hover:text-white transition"
+          className="text-xs text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition"
         >
           Dismiss
         </button>
@@ -974,7 +1048,7 @@ function AiMealSection({
             className="flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600/20 to-teal-600/20 hover:from-violet-600/30 hover:to-teal-600/30 border border-violet-500/20 rounded-xl py-3 transition"
           >
             <Sparkles size={16} className="text-violet-400" />
-            <span className="text-xs font-medium text-white">Describe with AI</span>
+            <span className="text-xs font-medium text-gray-900 dark:text-white">Describe with AI</span>
           </button>
           <button
             onClick={() => {
@@ -984,10 +1058,10 @@ function AiMealSection({
             className="flex items-center justify-center gap-2 bg-gradient-to-r from-teal-600/20 to-cyan-600/20 hover:from-teal-600/30 hover:to-cyan-600/30 border border-teal-500/20 rounded-xl py-3 transition"
           >
             <Camera size={16} className="text-teal-400" />
-            <span className="text-xs font-medium text-white">Snap a Photo</span>
+            <span className="text-xs font-medium text-gray-900 dark:text-white">Snap a Photo</span>
           </button>
         </div>
-        <p className="text-[10px] text-slate-500 text-center">
+        <p className="text-[10px] text-gray-400 dark:text-slate-500 text-center">
           AI estimates are approximate — adjust if needed
         </p>
         <input
@@ -1005,10 +1079,10 @@ function AiMealSection({
   // Text input mode
   if (aiMode === "text") {
     return (
-      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <Sparkles size={14} className="text-violet-400" />
-          <p className="text-xs font-semibold text-white">Describe your meal</p>
+          <p className="text-xs font-semibold text-gray-900 dark:text-white">Describe your meal</p>
         </div>
         <textarea
           value={aiDescription}
@@ -1016,7 +1090,7 @@ function AiMealSection({
           placeholder="e.g., 200g grilled chicken breast with a cup of white rice and a mixed green salad with olive oil dressing"
           rows={3}
           autoFocus
-          className="w-full bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+          className="w-full bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none"
         />
         <div className="flex gap-2">
           <button
@@ -1028,7 +1102,7 @@ function AiMealSection({
           </button>
           <button
             onClick={onCancel}
-            className="px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 py-2.5 rounded-xl text-xs font-medium transition"
+            className="px-4 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-600 dark:text-slate-300 py-2.5 rounded-xl text-xs font-medium transition"
           >
             Cancel
           </button>
@@ -1040,12 +1114,12 @@ function AiMealSection({
   // Photo mode (waiting for file selection)
   if (aiMode === "photo") {
     return (
-      <div className="bg-slate-800 rounded-2xl p-4 text-center space-y-3">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 text-center space-y-3">
         <Camera size={24} className="text-teal-400 mx-auto" />
-        <p className="text-xs text-slate-400">Opening camera...</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400">Opening camera...</p>
         <button
           onClick={onCancel}
-          className="text-xs text-slate-500 hover:text-white transition"
+          className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition"
         >
           Cancel
         </button>
@@ -1064,12 +1138,12 @@ function AiMealSection({
   // Loading
   if (aiMode === "loading") {
     return (
-      <div className="bg-slate-800 rounded-2xl p-6 text-center space-y-3">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-6 text-center space-y-3">
         <Loader2 size={28} className="text-teal-400 mx-auto animate-spin" />
-        <p className="text-sm text-white font-medium animate-pulse">
+        <p className="text-sm text-gray-900 dark:text-white font-medium animate-pulse">
           Analyzing your meal...
         </p>
-        <p className="text-[10px] text-slate-500">
+        <p className="text-[10px] text-gray-400 dark:text-slate-500">
           Estimating portions and nutrition
         </p>
       </div>
@@ -1079,10 +1153,10 @@ function AiMealSection({
   // Preview
   if (aiMode === "preview" && aiResult) {
     return (
-      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-violet-400" />
-          <p className="text-xs font-semibold text-white">AI Estimate</p>
+          <p className="text-xs font-semibold text-gray-900 dark:text-white">AI Estimate</p>
         </div>
 
         {/* Food items */}
@@ -1090,10 +1164,10 @@ function AiMealSection({
           {aiResult.foods.map((food, i) => (
             <div
               key={i}
-              className="bg-slate-700/50 rounded-lg px-3 py-2"
+              className="bg-gray-200/50 dark:bg-slate-700/50 rounded-lg px-3 py-2"
             >
-              <p className="text-xs font-medium text-white">{food.name}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
+              <p className="text-xs font-medium text-gray-900 dark:text-white">{food.name}</p>
+              <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">
                 {Math.round(food.calories)} cal · P {Math.round(food.protein_g)}g
                 · C {Math.round(food.carbs_g)}g · F {Math.round(food.fat_g)}g
               </p>
@@ -1105,7 +1179,7 @@ function AiMealSection({
         {aiResult.foods.length > 1 && (
           <div className="bg-teal-600/10 border border-teal-500/20 rounded-lg px-3 py-2">
             <p className="text-xs font-semibold text-teal-400">Total</p>
-            <p className="text-[10px] text-slate-300 mt-0.5">
+            <p className="text-[10px] text-gray-600 dark:text-slate-300 mt-0.5">
               {Math.round(aiResult.total.calories)} cal · P{" "}
               {Math.round(aiResult.total.protein_g)}g · C{" "}
               {Math.round(aiResult.total.carbs_g)}g · F{" "}
@@ -1116,7 +1190,7 @@ function AiMealSection({
 
         {/* Portion note */}
         {aiResult.portion_note && (
-          <p className="text-[10px] text-slate-500 italic">
+          <p className="text-[10px] text-gray-400 dark:text-slate-500 italic">
             {aiResult.portion_note}
           </p>
         )}
@@ -1131,14 +1205,14 @@ function AiMealSection({
           </button>
           <button
             onClick={onEdit}
-            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5"
+            className="flex-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5"
           >
             <Pencil size={13} /> Edit Values
           </button>
         </div>
         <button
           onClick={onCancel}
-          className="w-full text-center text-[10px] text-slate-500 hover:text-white transition py-1"
+          className="w-full text-center text-[10px] text-gray-400 dark:text-slate-500 hover:text-gray-900 dark:hover:text-white transition py-1"
         >
           <X size={10} className="inline mr-1" />
           Cancel
@@ -1193,11 +1267,11 @@ function MacroMini({
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[9px] font-bold text-white">{value}g</span>
+          <span className="text-[9px] font-bold text-gray-900 dark:text-white">{value}g</span>
         </div>
       </div>
-      <span className="text-[10px] text-slate-400">{label}</span>
-      <span className="text-[9px] text-slate-500">/ {target}g</span>
+      <span className="text-[10px] text-gray-500 dark:text-slate-400">{label}</span>
+      <span className="text-[9px] text-gray-400 dark:text-slate-500">/ {target}g</span>
     </div>
   );
 }

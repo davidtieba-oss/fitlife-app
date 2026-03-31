@@ -193,7 +193,7 @@ export default function PhotosTab() {
       {toast && <Toast message={toast} onClose={() => setToast("")} />}
 
       {/* Upload controls */}
-      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex gap-2">
           <input
             ref={cameraInputRef}
@@ -218,7 +218,7 @@ export default function PhotosTab() {
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-sm font-medium transition"
+            className="flex-1 flex items-center justify-center gap-1.5 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white py-2.5 rounded-xl text-sm font-medium transition"
           >
             <Upload size={16} /> Upload
           </button>
@@ -229,15 +229,15 @@ export default function PhotosTab() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none"
+            className="flex-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white outline-none"
           />
-          <div className="flex bg-slate-700 rounded-lg overflow-hidden">
+          <div className="flex bg-gray-200 dark:bg-slate-700 rounded-lg overflow-hidden">
             {POSES.map((p) => (
               <button
                 key={p.value}
                 onClick={() => setPose(p.value)}
                 className={`px-3 py-2 text-xs font-medium transition ${
-                  pose === p.value ? "bg-teal-600 text-white" : "text-slate-400"
+                  pose === p.value ? "bg-teal-600 text-white" : "text-gray-500 dark:text-slate-400"
                 }`}
               >
                 {p.label}
@@ -249,12 +249,12 @@ export default function PhotosTab() {
         {/* Storage bar */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-slate-400">Storage</span>
-            <span className={`text-[10px] ${storagePct > 80 ? "text-red-400" : "text-slate-400"}`}>
+            <span className="text-[10px] text-gray-500 dark:text-slate-400">Storage</span>
+            <span className={`text-[10px] ${storagePct > 80 ? "text-red-400" : "text-gray-500 dark:text-slate-400"}`}>
               {(storageUsed / 1024 / 1024).toFixed(1)} / 5 MB
             </span>
           </div>
-          <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
+          <div className="h-1 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${storagePct > 80 ? "bg-red-500" : "bg-teal-500"}`}
               style={{ width: `${Math.min(storagePct, 100)}%` }}
@@ -277,7 +277,7 @@ export default function PhotosTab() {
             setSliderPos(50);
           }}
           className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium transition ${
-            compareMode ? "bg-teal-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+            compareMode ? "bg-teal-600 text-white" : "bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
           }`}
         >
           <Columns2 size={14} /> {compareMode ? "Exit Compare" : "Compare Photos"}
@@ -286,13 +286,13 @@ export default function PhotosTab() {
 
       {/* Comparison view */}
       {compareMode && comparePhotos.length === 2 && (
-        <div className="bg-slate-800 rounded-2xl p-3 space-y-2">
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-3 space-y-2">
           {/* Mode toggle */}
-          <div className="flex bg-slate-700 rounded-lg p-0.5">
+          <div className="flex bg-gray-200 dark:bg-slate-700 rounded-lg p-0.5">
             <button
               onClick={() => setCompareView("side-by-side")}
               className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-medium transition ${
-                compareView === "side-by-side" ? "bg-teal-600 text-white" : "text-slate-400"
+                compareView === "side-by-side" ? "bg-teal-600 text-white" : "text-gray-500 dark:text-slate-400"
               }`}
             >
               <Columns2 size={12} /> Side by Side
@@ -300,7 +300,7 @@ export default function PhotosTab() {
             <button
               onClick={() => { setCompareView("slider"); setSliderPos(50); }}
               className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md text-[10px] font-medium transition ${
-                compareView === "slider" ? "bg-teal-600 text-white" : "text-slate-400"
+                compareView === "slider" ? "bg-teal-600 text-white" : "text-gray-500 dark:text-slate-400"
               }`}
             >
               <SlidersHorizontal size={12} /> Slider
@@ -313,11 +313,11 @@ export default function PhotosTab() {
               {comparePhotos.map((p) => (
                 <div key={p.id}>
                   <img src={p.dataUrl} alt={p.pose || "Progress"} className="w-full aspect-[3/4] object-cover rounded-lg" />
-                  <p className="text-[10px] text-slate-400 text-center mt-1">
+                  <p className="text-[10px] text-gray-500 dark:text-slate-400 text-center mt-1">
                     {format(parseISO(p.date), "MMM d, yyyy")}
                     {p.pose && ` · ${p.pose}`}
                   </p>
-                  <p className="text-[9px] text-slate-500 text-center">
+                  <p className="text-[9px] text-gray-400 dark:text-slate-500 text-center">
                     {getOverlayText(p, metrics, measurementsData, false)}
                   </p>
                 </div>
@@ -372,7 +372,7 @@ export default function PhotosTab() {
 
           <button
             onClick={() => setCompareIds([])}
-            className="w-full mt-1 text-[10px] text-slate-500 hover:text-slate-300"
+            className="w-full mt-1 text-[10px] text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
           >
             Clear selection
           </button>
@@ -380,14 +380,14 @@ export default function PhotosTab() {
       )}
 
       {compareMode && comparePhotos.length < 2 && (
-        <p className="text-xs text-slate-500 text-center">
+        <p className="text-xs text-gray-400 dark:text-slate-500 text-center">
           Select {2 - comparePhotos.length} photo{comparePhotos.length === 0 ? "s" : ""} to compare
         </p>
       )}
 
       {/* Photo timeline */}
       {photos.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-gray-400 dark:text-slate-500">
           <Image size={40} className="mx-auto mb-3 opacity-50" />
           <p className="text-sm">No progress photos yet.</p>
           <p className="text-xs mt-1">Take or upload your first photo!</p>
@@ -396,7 +396,7 @@ export default function PhotosTab() {
         <div className="space-y-4">
           {Object.entries(grouped).map(([month, monthPhotos]) => (
             <div key={month}>
-              <h3 className="text-xs font-semibold text-slate-400 mb-2">{month}</h3>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">{month}</h3>
               <div className="grid grid-cols-3 gap-2">
                 {monthPhotos.map((p) => {
                   const isSelected = compareIds.includes(p.id);
@@ -437,21 +437,21 @@ export default function PhotosTab() {
 
       {/* Photo viewer modal */}
       {viewPhoto && (
-        <div className="fixed inset-0 z-[90] bg-slate-950/95 flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 z-[90] bg-white/95 dark:bg-slate-950/95 flex flex-col items-center justify-center p-4">
           <div className="max-w-lg w-full">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-medium text-white">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {format(parseISO(viewPhoto.date), "MMMM d, yyyy")}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   {viewPhoto.pose && (
-                    <span className="inline-block bg-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-300">
+                    <span className="inline-block bg-gray-200 dark:bg-slate-700 rounded px-1.5 py-0.5 text-[10px] text-gray-600 dark:text-slate-300">
                       {viewPhoto.pose}
                     </span>
                   )}
                   {viewPhoto.label && (
-                    <span className="text-xs text-slate-400">{viewPhoto.label}</span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">{viewPhoto.label}</span>
                   )}
                 </div>
                 {/* Detailed overlay */}
@@ -464,7 +464,7 @@ export default function PhotosTab() {
               </div>
               <button
                 onClick={() => setViewPhoto(null)}
-                className="text-slate-400 hover:text-white p-1"
+                className="text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white p-1"
               >
                 <X size={20} />
               </button>

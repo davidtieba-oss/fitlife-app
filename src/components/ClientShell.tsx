@@ -2,6 +2,7 @@
 
 import { type ReactNode } from "react";
 import { ProfileProvider, useProfile } from "@/lib/ProfileContext";
+import { ThemeProvider } from "@/lib/ThemeProvider";
 import AppHeader from "./AppHeader";
 import BottomNav from "./BottomNav";
 import Onboarding from "./Onboarding";
@@ -28,8 +29,10 @@ function ShellInner({ children }: { children: ReactNode }) {
 
 export default function ClientShell({ children }: { children: ReactNode }) {
   return (
-    <ProfileProvider>
-      <ShellInner>{children}</ShellInner>
-    </ProfileProvider>
+    <ThemeProvider>
+      <ProfileProvider>
+        <ShellInner>{children}</ShellInner>
+      </ProfileProvider>
+    </ThemeProvider>
   );
 }

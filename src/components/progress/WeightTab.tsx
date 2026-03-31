@@ -73,7 +73,7 @@ export default function WeightTab({ metrics, period, onPeriodChange }: Props) {
             className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${
               period === p.value
                 ? "bg-teal-600 text-white"
-                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                : "bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
             }`}
           >
             {p.label}
@@ -82,8 +82,8 @@ export default function WeightTab({ metrics, period, onPeriodChange }: Props) {
       </div>
 
       {/* Weight chart */}
-      <div className="bg-slate-800 rounded-2xl p-4">
-        <p className="text-xs text-slate-400 font-medium mb-2">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+        <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2">
           Weight · <span className="text-cyan-400">7-day avg</span>
         </p>
         {chartData.length > 0 ? (
@@ -125,7 +125,7 @@ export default function WeightTab({ metrics, period, onPeriodChange }: Props) {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-40 flex items-center justify-center text-slate-500 text-sm">
+          <div className="h-40 flex items-center justify-center text-gray-400 dark:text-slate-500 text-sm">
             No weight data for this period.
           </div>
         )}
@@ -133,8 +133,8 @@ export default function WeightTab({ metrics, period, onPeriodChange }: Props) {
 
       {/* Body fat chart */}
       {chartData.some((d) => d.bodyFat !== null) && (
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-xs text-slate-400 font-medium mb-2">Body Fat %</p>
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+          <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2">Body Fat %</p>
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chartData.filter((d) => d.bodyFat !== null)}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -168,19 +168,19 @@ export default function WeightTab({ metrics, period, onPeriodChange }: Props) {
       {stats.startWeight !== null && (
         <div className="space-y-3">
           {/* Journey card */}
-          <div className="bg-slate-800 rounded-2xl p-4">
-            <p className="text-xs text-slate-400 font-medium mb-3">Journey</p>
+          <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+            <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-3">Journey</p>
             <div className="flex items-center justify-between">
               <div className="text-center">
                 <p className="text-lg font-bold">{stats.startWeight}</p>
-                <p className="text-[10px] text-slate-400">Start (kg)</p>
+                <p className="text-[10px] text-gray-500 dark:text-slate-400">Start (kg)</p>
               </div>
-              <ArrowRight size={16} className="text-slate-500" />
+              <ArrowRight size={16} className="text-gray-400 dark:text-slate-500" />
               <div className="text-center">
                 <p className="text-lg font-bold">{stats.currentWeight}</p>
-                <p className="text-[10px] text-slate-400">Current (kg)</p>
+                <p className="text-[10px] text-gray-500 dark:text-slate-400">Current (kg)</p>
               </div>
-              <ArrowRight size={16} className="text-slate-500" />
+              <ArrowRight size={16} className="text-gray-400 dark:text-slate-500" />
               <div className="text-center">
                 <p
                   className={`text-lg font-bold ${
@@ -188,37 +188,37 @@ export default function WeightTab({ metrics, period, onPeriodChange }: Props) {
                       ? "text-green-400"
                       : stats.change! > 0
                       ? "text-red-400"
-                      : "text-white"
+                      : "text-gray-900 dark:text-white"
                   }`}
                 >
                   {stats.change! > 0 ? "+" : ""}
                   {stats.change!.toFixed(1)}
                 </p>
-                <p className="text-[10px] text-slate-400">Change (kg)</p>
+                <p className="text-[10px] text-gray-500 dark:text-slate-400">Change (kg)</p>
               </div>
             </div>
           </div>
 
           {/* Detail stats */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-slate-800 rounded-xl p-3 text-center">
+            <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-3 text-center">
               <ChevronsUp size={16} className="mx-auto text-red-400 mb-1" />
               <p className="text-sm font-bold">{stats.highest}</p>
-              <p className="text-[10px] text-slate-400">Highest (kg)</p>
+              <p className="text-[10px] text-gray-500 dark:text-slate-400">Highest (kg)</p>
             </div>
-            <div className="bg-slate-800 rounded-xl p-3 text-center">
+            <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-3 text-center">
               <ChevronsDown size={16} className="mx-auto text-green-400 mb-1" />
               <p className="text-sm font-bold">{stats.lowest}</p>
-              <p className="text-[10px] text-slate-400">Lowest (kg)</p>
+              <p className="text-[10px] text-gray-500 dark:text-slate-400">Lowest (kg)</p>
             </div>
-            <div className="bg-slate-800 rounded-xl p-3 text-center">
+            <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-3 text-center">
               <BarChart3 size={16} className="mx-auto text-cyan-400 mb-1" />
               <p className="text-sm font-bold">
                 {stats.avgWeeklyChange !== null
                   ? `${stats.avgWeeklyChange > 0 ? "+" : ""}${stats.avgWeeklyChange}`
                   : "—"}
               </p>
-              <p className="text-[10px] text-slate-400">Avg/week (kg)</p>
+              <p className="text-[10px] text-gray-500 dark:text-slate-400">Avg/week (kg)</p>
             </div>
           </div>
         </div>

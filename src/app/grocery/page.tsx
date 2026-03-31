@@ -18,6 +18,7 @@ import {
   GROCERY_CATEGORIES,
   type GroceryItem,
 } from "@/lib/storage";
+import { ListSkeleton } from "@/components/Skeleton";
 import Toast from "@/components/Toast";
 
 export default function GroceryPage() {
@@ -36,9 +37,7 @@ export default function GroceryPage() {
 
   if (!mounted) {
     return (
-      <div className="h-screen flex items-center justify-center text-slate-500">
-        Loading...
-      </div>
+      <ListSkeleton />
     );
   }
 
@@ -84,7 +83,7 @@ export default function GroceryPage() {
         {checkedCount > 0 && (
           <button
             onClick={handleClearChecked}
-            className="text-xs text-slate-400 hover:text-red-400 transition flex items-center gap-1"
+            className="text-xs text-gray-500 dark:text-slate-400 hover:text-red-400 transition flex items-center gap-1"
           >
             <X size={12} /> Clear {checkedCount} done
           </button>
@@ -92,14 +91,14 @@ export default function GroceryPage() {
       </div>
 
       {/* Add form */}
-      <form onSubmit={handleAdd} className="bg-slate-800 rounded-2xl p-4 space-y-3">
+      <form onSubmit={handleAdd} className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex gap-2">
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Add item..."
-            className="flex-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-teal-500"
+            className="flex-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-teal-500"
           />
           <button
             type="submit"
@@ -111,7 +110,7 @@ export default function GroceryPage() {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="w-full bg-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none"
+          className="w-full bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white outline-none"
         >
           {GROCERY_CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -123,7 +122,7 @@ export default function GroceryPage() {
 
       {/* Items by category */}
       {items.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-gray-400 dark:text-slate-500">
           <ShoppingCart size={40} className="mx-auto mb-3 opacity-50" />
           <p className="text-sm">Your grocery list is empty.</p>
           <p className="text-xs mt-1">Add items above to get started!</p>
@@ -131,13 +130,13 @@ export default function GroceryPage() {
       ) : (
         <div className="space-y-3">
           {grouped.map(({ category: cat, items: catItems }) => (
-            <div key={cat} className="bg-slate-800 rounded-xl overflow-hidden">
-              <div className="px-4 py-2 border-b border-slate-700/50">
+            <div key={cat} className="bg-gray-100 dark:bg-slate-800 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 border-b border-gray-200/50 dark:border-slate-700/50">
                 <p className="text-[10px] text-teal-400 font-semibold uppercase tracking-wider">
                   {cat}
                 </p>
               </div>
-              <div className="divide-y divide-slate-700/30">
+              <div className="divide-y divide-gray-200/30 dark:divide-slate-700/30">
                 {catItems.map((item) => (
                   <div
                     key={item.id}
@@ -153,21 +152,21 @@ export default function GroceryPage() {
                           className="text-teal-400"
                         />
                       ) : (
-                        <Circle size={20} className="text-slate-500" />
+                        <Circle size={20} className="text-gray-400 dark:text-slate-500" />
                       )}
                     </button>
                     <span
                       className={`flex-1 text-sm ${
                         item.checked
-                          ? "line-through text-slate-500"
-                          : "text-white"
+                          ? "line-through text-gray-400 dark:text-slate-500"
+                          : "text-gray-900 dark:text-white"
                       }`}
                     >
                       {item.name}
                     </span>
                     <button
                       onClick={() => handleDelete(item.id)}
-                      className="text-slate-500 hover:text-red-400 p-1 transition shrink-0"
+                      className="text-gray-400 dark:text-slate-500 hover:text-red-400 p-1 transition shrink-0"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -179,7 +178,7 @@ export default function GroceryPage() {
         </div>
       )}
 
-      <p className="text-[10px] text-slate-500 text-center">
+      <p className="text-[10px] text-gray-400 dark:text-slate-500 text-center">
         Grocery list is shared across all profiles.
       </p>
     </div>

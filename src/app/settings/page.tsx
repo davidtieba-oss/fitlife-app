@@ -19,15 +19,20 @@ import {
   AI_MODELS_FALLBACK,
   getCachedModels,
   saveCachedModels,
+  getReminders,
+  saveReminders,
   type UserSettings,
   type WeightGoal,
   type Profile,
   type AiSettings,
   type AiModelInfo,
+  type ReminderSettings,
 } from "@/lib/storage";
 import { askAI } from "@/lib/ai";
 import { useProfile } from "@/lib/ProfileContext";
+import { useTheme } from "@/lib/ThemeProvider";
 import Toast from "@/components/Toast";
+import { SettingsSkeleton } from "@/components/Skeleton";
 import {
   Trash2,
   Plus,
@@ -42,6 +47,14 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  Sun,
+  Moon,
+  Monitor,
+  Bell,
+  Scale,
+  Utensils,
+  Dumbbell,
+  Droplets,
 } from "lucide-react";
 
 const GOAL_OPTIONS: { value: WeightGoal; label: string; desc: string }[] = [
@@ -50,8 +63,15 @@ const GOAL_OPTIONS: { value: WeightGoal; label: string; desc: string }[] = [
   { value: "gain", label: "Gain Weight", desc: "+300 cal/day" },
 ];
 
+const THEME_OPTIONS = [
+  { value: "system" as const, label: "System", icon: Monitor },
+  { value: "dark" as const, label: "Dark", icon: Moon },
+  { value: "light" as const, label: "Light", icon: Sun },
+];
+
 export default function SettingsPage() {
   const { activeId, refreshProfiles, switchProfile } = useProfile();
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] = useState<UserSettings>({
     waterGoal: 8,
@@ -75,6 +95,10 @@ export default function SettingsPage() {
   const [clearInput, setClearInput] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
 
+  // Reminders
+  const [reminders, setReminders] = useState<ReminderSettings>({ weighIn: false, meals: false, workout: false, water: false });
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
+
   // AI settings state
   const [aiSettings, setAiSettingsState] = useState<AiSettings>({ apiKey: "", model: "claude-sonnet-4-6" });
   const [aiTestStatus, setAiTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
@@ -92,11 +116,9 @@ export default function SettingsPage() {
       const data = await res.json();
       const allModels: Array<{ id: string; display_name?: string; capabilities?: { image_input?: boolean } }> =
         data.data ?? data;
-      // Filter to image-capable models, map to our format
       const imageCapable = allModels.filter(
         (m) => m.capabilities?.image_input !== false
       );
-      // Determine sort order: haiku < sonnet < opus, then by id
       function sortKey(id: string): number {
         if (id.includes("haiku")) return 0;
         if (id.includes("sonnet")) return 1;
@@ -117,7 +139,7 @@ export default function SettingsPage() {
         saveCachedModels(mapped);
       }
     } catch {
-      // Fall back to hardcoded list (already set)
+      // Fall back to hardcoded list
     } finally {
       setModelsLoading(false);
     }
@@ -128,7 +150,10 @@ export default function SettingsPage() {
     setSettings(getSettings());
     setProfiles(getProfiles());
     setAiSettingsState(getAiSettings());
-    // Load cached models or fallback
+    setReminders(getReminders());
+    if (typeof Notification !== "undefined") {
+      setNotifPermission(Notification.permission);
+    }
     const cached = getCachedModels();
     if (cached && cached.length > 0) {
       setAiModels(cached);
@@ -136,11 +161,7 @@ export default function SettingsPage() {
   }, [activeId]);
 
   if (!mounted) {
-    return (
-      <div className="h-screen flex items-center justify-center text-slate-500">
-        Loading...
-      </div>
-    );
+    return <SettingsSkeleton />;
   }
 
   function handleSave(e: React.FormEvent) {
@@ -155,26 +176,17 @@ export default function SettingsPage() {
     if (total !== 100) {
       if (field === "proteinPct") {
         const remaining = 100 - next.proteinPct;
-        const ratio =
-          next.carbsPct + next.fatPct > 0
-            ? remaining / (next.carbsPct + next.fatPct)
-            : 0.5;
+        const ratio = next.carbsPct + next.fatPct > 0 ? remaining / (next.carbsPct + next.fatPct) : 0.5;
         next.carbsPct = Math.round(next.carbsPct * ratio);
         next.fatPct = 100 - next.proteinPct - next.carbsPct;
       } else if (field === "carbsPct") {
         const remaining = 100 - next.carbsPct;
-        const ratio =
-          next.proteinPct + next.fatPct > 0
-            ? remaining / (next.proteinPct + next.fatPct)
-            : 0.5;
+        const ratio = next.proteinPct + next.fatPct > 0 ? remaining / (next.proteinPct + next.fatPct) : 0.5;
         next.proteinPct = Math.round(next.proteinPct * ratio);
         next.fatPct = 100 - next.proteinPct - next.carbsPct;
       } else {
         const remaining = 100 - next.fatPct;
-        const ratio =
-          next.proteinPct + next.carbsPct > 0
-            ? remaining / (next.proteinPct + next.carbsPct)
-            : 0.5;
+        const ratio = next.proteinPct + next.carbsPct > 0 ? remaining / (next.proteinPct + next.carbsPct) : 0.5;
         next.proteinPct = Math.round(next.proteinPct * ratio);
         next.carbsPct = 100 - next.proteinPct - next.fatPct;
       }
@@ -260,6 +272,21 @@ export default function SettingsPage() {
     setToast("All data cleared.");
   }
 
+  function toggleReminder(key: keyof ReminderSettings) {
+    const next = { ...reminders, [key]: !reminders[key] };
+    setReminders(next);
+    saveReminders(next);
+  }
+
+  async function requestNotificationPermission() {
+    if (typeof Notification === "undefined") return;
+    const result = await Notification.requestPermission();
+    setNotifPermission(result);
+    if (result === "granted") {
+      setToast("Notifications enabled!");
+    }
+  }
+
   const macros = getMacroTargets(settings);
   const suggestedCals = getSuggestedCalories(2000, settings.weightGoal);
 
@@ -267,16 +294,16 @@ export default function SettingsPage() {
     <div className="space-y-4">
       {toast && <Toast message={toast} onClose={() => setToast("")} />}
 
-      <h1 className="text-xl font-bold">Settings</h1>
+      <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
 
       {/* Profiles */}
-      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-300">Profiles</h2>
+          <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">Profiles</h2>
           {profiles.length < 4 && (
             <button
               onClick={() => setShowNewProfile(true)}
-              className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1 transition"
+              className="text-xs text-teal-500 dark:text-teal-400 hover:text-teal-400 dark:hover:text-teal-300 flex items-center gap-1 transition"
             >
               <Plus size={12} /> Add
             </button>
@@ -290,12 +317,12 @@ export default function SettingsPage() {
 
             if (isEditing) {
               return (
-                <div key={p.id} className="bg-slate-700 rounded-lg p-3 space-y-2">
+                <div key={p.id} className="bg-gray-200 dark:bg-slate-700 rounded-lg p-3 space-y-2">
                   <input
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-slate-600 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full bg-gray-300 dark:bg-slate-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
                   />
                   <div className="flex gap-2">
                     {PROFILE_COLORS.map((c) => (
@@ -304,7 +331,7 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => setEditColor(c)}
                         className={`w-6 h-6 rounded-full transition-all ${
-                          editColor === c ? "ring-2 ring-white scale-110" : "opacity-50"
+                          editColor === c ? "ring-2 ring-teal-500 scale-110" : "opacity-50"
                         }`}
                         style={{ backgroundColor: c }}
                       />
@@ -319,7 +346,7 @@ export default function SettingsPage() {
                     </button>
                     <button
                       onClick={() => setEditingProfile(null)}
-                      className="flex-1 bg-slate-600 text-slate-300 text-xs py-1.5 rounded-lg flex items-center justify-center gap-1"
+                      className="flex-1 bg-gray-300 dark:bg-slate-600 text-gray-600 dark:text-slate-300 text-xs py-1.5 rounded-lg flex items-center justify-center gap-1"
                     >
                       <X size={12} /> Cancel
                     </button>
@@ -332,7 +359,7 @@ export default function SettingsPage() {
               <div
                 key={p.id}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${
-                  isActive ? "bg-slate-700" : "bg-slate-800"
+                  isActive ? "bg-gray-200 dark:bg-slate-700" : "bg-gray-100 dark:bg-slate-800"
                 }`}
               >
                 <div
@@ -342,25 +369,23 @@ export default function SettingsPage() {
                   {p.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {p.name}
-                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{p.name}</p>
                   {isActive && (
-                    <p className="text-[10px] text-teal-400">Active</p>
+                    <p className="text-[10px] text-teal-500 dark:text-teal-400">Active</p>
                   )}
                 </div>
                 <div className="flex items-center gap-1">
                   {!isActive && (
                     <button
                       onClick={() => switchProfile(p.id)}
-                      className="text-[10px] text-slate-400 hover:text-teal-400 px-2 py-1 transition"
+                      className="text-[10px] text-gray-500 dark:text-slate-400 hover:text-teal-500 dark:hover:text-teal-400 px-2 py-1 transition"
                     >
                       Switch
                     </button>
                   )}
                   <button
                     onClick={() => handleEditProfile(p.id)}
-                    className="text-[10px] text-slate-400 hover:text-white px-2 py-1 transition"
+                    className="text-[10px] text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 transition"
                   >
                     Edit
                   </button>
@@ -368,24 +393,11 @@ export default function SettingsPage() {
                     <>
                       {confirmDelete === p.id ? (
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleDeleteProfile(p.id)}
-                            className="text-[10px] text-red-400 px-1"
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            onClick={() => setConfirmDelete(null)}
-                            className="text-[10px] text-slate-400 px-1"
-                          >
-                            No
-                          </button>
+                          <button onClick={() => handleDeleteProfile(p.id)} className="text-[10px] text-red-400 px-1">Confirm</button>
+                          <button onClick={() => setConfirmDelete(null)} className="text-[10px] text-gray-500 dark:text-slate-400 px-1">No</button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => setConfirmDelete(p.id)}
-                          className="text-slate-500 hover:text-red-400 p-1 transition"
-                        >
+                        <button onClick={() => setConfirmDelete(p.id)} className="text-gray-400 dark:text-slate-500 hover:text-red-400 p-1 transition">
                           <Trash2 size={12} />
                         </button>
                       )}
@@ -397,16 +409,15 @@ export default function SettingsPage() {
           })}
         </div>
 
-        {/* New profile form */}
         {showNewProfile && (
-          <div className="bg-slate-700 rounded-lg p-3 space-y-2">
+          <div className="bg-gray-200 dark:bg-slate-700 rounded-lg p-3 space-y-2">
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Profile name"
               autoFocus
-              className="w-full bg-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full bg-gray-300 dark:bg-slate-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-teal-500"
             />
             <div className="flex gap-2">
               {PROFILE_COLORS.map((c) => (
@@ -415,23 +426,17 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => setNewColor(c)}
                   className={`w-6 h-6 rounded-full transition-all ${
-                    newColor === c ? "ring-2 ring-white scale-110" : "opacity-50"
+                    newColor === c ? "ring-2 ring-teal-500 scale-110" : "opacity-50"
                   }`}
                   style={{ backgroundColor: c }}
                 />
               ))}
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={handleAddProfile}
-                className="flex-1 bg-teal-600 text-white text-xs py-1.5 rounded-lg flex items-center justify-center gap-1"
-              >
+              <button onClick={handleAddProfile} className="flex-1 bg-teal-600 text-white text-xs py-1.5 rounded-lg flex items-center justify-center gap-1">
                 <Plus size={12} /> Create
               </button>
-              <button
-                onClick={() => setShowNewProfile(false)}
-                className="flex-1 bg-slate-600 text-slate-300 text-xs py-1.5 rounded-lg"
-              >
+              <button onClick={() => setShowNewProfile(false)} className="flex-1 bg-gray-300 dark:bg-slate-600 text-gray-600 dark:text-slate-300 text-xs py-1.5 rounded-lg">
                 Cancel
               </button>
             </div>
@@ -439,135 +444,151 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* Theme */}
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">Appearance</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {THEME_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setTheme(opt.value)}
+                className={`flex flex-col items-center gap-1.5 py-3 rounded-xl transition ${
+                  theme === opt.value
+                    ? "bg-teal-600 text-white"
+                    : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400 hover:bg-gray-300 dark:hover:bg-slate-600"
+                }`}
+              >
+                <Icon size={18} />
+                <span className="text-xs font-medium">{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Reminders */}
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Bell size={14} className="text-amber-500" />
+          <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">Reminders</h2>
+        </div>
+
+        {[
+          { key: "weighIn" as const, label: "Weigh-in", icon: Scale },
+          { key: "meals" as const, label: "Meals", icon: Utensils },
+          { key: "workout" as const, label: "Workout", icon: Dumbbell },
+          { key: "water" as const, label: "Water", icon: Droplets },
+        ].map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => toggleReminder(key)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 transition"
+          >
+            <div className="flex items-center gap-2.5">
+              <Icon size={16} className="text-gray-500 dark:text-slate-400" />
+              <span className="text-sm text-gray-900 dark:text-white">{label}</span>
+            </div>
+            <div
+              className={`w-10 h-6 rounded-full transition-colors flex items-center ${
+                reminders[key] ? "bg-teal-600 justify-end" : "bg-gray-300 dark:bg-slate-600 justify-start"
+              }`}
+            >
+              <div className="w-5 h-5 bg-white rounded-full shadow mx-0.5" />
+            </div>
+          </button>
+        ))}
+
+        {notifPermission !== "granted" && (
+          <button
+            onClick={requestNotificationPermission}
+            className="w-full text-xs text-amber-500 hover:text-amber-400 py-1.5 transition"
+          >
+            {notifPermission === "denied" ? "Notifications blocked — reminders shown as banners" : "Enable browser notifications"}
+          </button>
+        )}
+      </div>
+
       {/* Settings form */}
       <form onSubmit={handleSave} className="space-y-4">
-        {/* Profile settings */}
-        <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-300">Profile Settings</h2>
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">Profile Settings</h2>
           <div>
-            <label className="text-xs text-slate-400 font-medium">
-              Display Name
-            </label>
+            <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Display Name</label>
             <input
               type="text"
               value={settings.name}
-              onChange={(e) =>
-                setSettings({ ...settings, name: e.target.value })
-              }
-              className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+              onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+              className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
           <div>
-            <label className="text-xs text-slate-400 font-medium">
-              Daily Water Goal (glasses)
-            </label>
+            <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Daily Water Goal (glasses)</label>
             <input
               type="number"
               value={settings.waterGoal}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  waterGoal: parseInt(e.target.value) || 1,
-                })
-              }
+              onChange={(e) => setSettings({ ...settings, waterGoal: parseInt(e.target.value) || 1 })}
               min={1}
               max={20}
-              className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+              inputMode="numeric"
+              className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
             />
-            <p className="text-xs text-slate-500 mt-1">1 glass = 250ml</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">1 glass = 250ml</p>
           </div>
         </div>
 
-        {/* Nutrition Targets */}
-        <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-300">
-            Nutrition Targets
-          </h2>
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">Nutrition Targets</h2>
 
           <div>
-            <label className="text-xs text-slate-400 font-medium mb-2 block">
-              Weight Goal
-            </label>
+            <label className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2 block">Weight Goal</label>
             <div className="grid grid-cols-3 gap-1.5">
               {GOAL_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() =>
-                    setSettings({ ...settings, weightGoal: opt.value })
-                  }
+                  onClick={() => setSettings({ ...settings, weightGoal: opt.value })}
                   className={`py-2 px-2 rounded-lg text-center transition ${
                     settings.weightGoal === opt.value
                       ? "bg-teal-600 text-white"
-                      : "bg-slate-700 text-slate-400"
+                      : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                   }`}
                 >
                   <p className="text-xs font-medium">{opt.label}</p>
-                  <p className="text-[10px] text-slate-300/60 mt-0.5">
-                    {opt.desc}
-                  </p>
+                  <p className="text-[10px] opacity-60 mt-0.5">{opt.desc}</p>
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-slate-500 mt-1.5">
+            <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1.5">
               Suggested: {suggestedCals} cal/day for{" "}
-              {settings.weightGoal === "lose"
-                ? "weight loss"
-                : settings.weightGoal === "gain"
-                ? "weight gain"
-                : "maintenance"}
+              {settings.weightGoal === "lose" ? "weight loss" : settings.weightGoal === "gain" ? "weight gain" : "maintenance"}
             </p>
           </div>
 
           <div>
-            <label className="text-xs text-slate-400 font-medium">
-              Daily Calorie Target
-            </label>
+            <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Daily Calorie Target</label>
             <input
               type="number"
               value={settings.calorieTarget}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  calorieTarget: parseInt(e.target.value) || 1000,
-                })
-              }
+              onChange={(e) => setSettings({ ...settings, calorieTarget: parseInt(e.target.value) || 1000 })}
               min={500}
               max={10000}
-              className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500"
+              step={50}
+              inputMode="numeric"
+              className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
 
           <div>
-            <label className="text-xs text-slate-400 font-medium mb-2 block">
-              Macro Split
-            </label>
+            <label className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2 block">Macro Split</label>
             <div className="space-y-3">
-              <MacroSlider
-                label="Protein"
-                pct={settings.proteinPct}
-                grams={macros.protein}
-                color="bg-teal-500"
-                onChange={(v) => updateMacroPct("proteinPct", v)}
-              />
-              <MacroSlider
-                label="Carbs"
-                pct={settings.carbsPct}
-                grams={macros.carbs}
-                color="bg-cyan-500"
-                onChange={(v) => updateMacroPct("carbsPct", v)}
-              />
-              <MacroSlider
-                label="Fat"
-                pct={settings.fatPct}
-                grams={macros.fat}
-                color="bg-amber-500"
-                onChange={(v) => updateMacroPct("fatPct", v)}
-              />
+              <MacroSlider label="Protein" pct={settings.proteinPct} grams={macros.protein} color="bg-teal-500" onChange={(v) => updateMacroPct("proteinPct", v)} />
+              <MacroSlider label="Carbs" pct={settings.carbsPct} grams={macros.carbs} color="bg-cyan-500" onChange={(v) => updateMacroPct("carbsPct", v)} />
+              <MacroSlider label="Fat" pct={settings.fatPct} grams={macros.fat} color="bg-amber-500" onChange={(v) => updateMacroPct("fatPct", v)} />
             </div>
-            <p className="text-[10px] text-slate-500 mt-2">
-              Total: {settings.proteinPct + settings.carbsPct + settings.fatPct}
-              % — Adjusts automatically to 100%
+            <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-2">
+              Total: {settings.proteinPct + settings.carbsPct + settings.fatPct}% — Adjusts automatically to 100%
             </p>
           </div>
         </div>
@@ -581,50 +602,43 @@ export default function SettingsPage() {
       </form>
 
       {/* Data Management */}
-      <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-slate-300">Data Management</h2>
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">Data Management</h2>
 
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={handleExport}
-            className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-xs font-medium transition"
+            className="flex items-center justify-center gap-1.5 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white py-2.5 rounded-xl text-xs font-medium transition"
           >
             <Download size={14} /> Export Data
           </button>
           <button
             onClick={() => importRef.current?.click()}
-            className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-xs font-medium transition"
+            className="flex items-center justify-center gap-1.5 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white py-2.5 rounded-xl text-xs font-medium transition"
           >
             <Upload size={14} /> Import Data
           </button>
-          <input
-            ref={importRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={handleImport}
-          />
+          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
         </div>
 
         {!showClearConfirm ? (
           <button
             onClick={() => setShowClearConfirm(true)}
-            className="w-full flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 py-2.5 rounded-xl text-xs font-medium transition"
+            className="w-full flex items-center justify-center gap-1.5 bg-red-600/10 dark:bg-red-600/20 hover:bg-red-600/20 dark:hover:bg-red-600/30 text-red-500 dark:text-red-400 py-2.5 rounded-xl text-xs font-medium transition"
           >
             <AlertTriangle size={14} /> Clear All Profile Data
           </button>
         ) : (
-          <div className="bg-red-600/10 rounded-xl p-3 space-y-2">
-            <p className="text-xs text-red-400 font-medium">
-              This will permanently delete all data for the current profile.
-              Type DELETE to confirm.
+          <div className="bg-red-50 dark:bg-red-600/10 rounded-xl p-3 space-y-2">
+            <p className="text-xs text-red-500 dark:text-red-400 font-medium">
+              This will permanently delete all data for the current profile. Type DELETE to confirm.
             </p>
             <input
               type="text"
               value={clearInput}
               onChange={(e) => setClearInput(e.target.value)}
               placeholder='Type "DELETE"'
-              className="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-red-500"
             />
             <div className="flex gap-2">
               <button
@@ -635,11 +649,8 @@ export default function SettingsPage() {
                 Confirm Delete
               </button>
               <button
-                onClick={() => {
-                  setShowClearConfirm(false);
-                  setClearInput("");
-                }}
-                className="flex-1 bg-slate-700 text-slate-300 text-xs py-2 rounded-lg"
+                onClick={() => { setShowClearConfirm(false); setClearInput(""); }}
+                className="flex-1 bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 text-xs py-2 rounded-lg"
               >
                 Cancel
               </button>
@@ -649,42 +660,34 @@ export default function SettingsPage() {
       </div>
 
       {/* AI Settings */}
-      <div className="bg-slate-800 rounded-2xl p-4 space-y-4">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-4">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-violet-400" />
-          <h2 className="text-sm font-semibold text-slate-300">AI Settings</h2>
+          <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">AI Settings</h2>
         </div>
 
-        {/* API Key */}
         <div>
-          <label className="text-xs text-slate-400 font-medium">
-            Anthropic API Key
-          </label>
+          <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Anthropic API Key</label>
           <input
             type="password"
             value={aiSettings.apiKey}
-            onChange={(e) =>
-              setAiSettingsState({ ...aiSettings, apiKey: e.target.value })
-            }
+            onChange={(e) => setAiSettingsState({ ...aiSettings, apiKey: e.target.value })}
             placeholder="sk-ant-..."
-            className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500 font-mono"
+            className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-violet-500 font-mono"
           />
-          <p className="text-[10px] text-slate-500 mt-1">
-            Get your key at{" "}
-            <span className="text-violet-400">console.anthropic.com</span>
-            {" · "}Stored locally on your device
+          <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
+            Get your key at <span className="text-violet-500 dark:text-violet-400">console.anthropic.com</span> · Stored locally on your device
           </p>
         </div>
 
-        {/* Model Selector */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-xs text-slate-400 font-medium">Model</label>
+            <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Model</label>
             <button
               type="button"
               onClick={() => fetchModels(aiSettings.apiKey)}
               disabled={modelsLoading}
-              className="flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50 transition"
+              className="flex items-center gap-1 text-[10px] text-violet-500 dark:text-violet-400 hover:text-violet-400 dark:hover:text-violet-300 disabled:opacity-50 transition"
             >
               <RefreshCw size={10} className={modelsLoading ? "animate-spin" : ""} />
               {modelsLoading ? "Loading..." : "Refresh Models"}
@@ -695,36 +698,30 @@ export default function SettingsPage() {
               <button
                 key={m.id}
                 type="button"
-                onClick={() =>
-                  setAiSettingsState({ ...aiSettings, model: m.id })
-                }
+                onClick={() => setAiSettingsState({ ...aiSettings, model: m.id })}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition ${
                   aiSettings.model === m.id
                     ? "bg-violet-600/20 border border-violet-500/30"
-                    : "bg-slate-700 border border-transparent"
+                    : "bg-gray-200 dark:bg-slate-700 border border-transparent"
                 }`}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-white">{m.name}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{m.desc}</p>
+                  <p className="text-xs font-medium text-gray-900 dark:text-white">{m.name}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-slate-400 truncate">{m.desc}</p>
                 </div>
                 {m.costNote && (
-                  <span className="text-[10px] text-slate-500 shrink-0 ml-2">
-                    {m.costNote}
-                  </span>
+                  <span className="text-[10px] text-gray-400 dark:text-slate-500 shrink-0 ml-2">{m.costNote}</span>
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Save + Test */}
         <div className="flex gap-2">
           <button
             onClick={() => {
               saveAiSettings(aiSettings);
               setToast("AI settings saved!");
-              // Auto-fetch models when key is saved
               if (aiSettings.apiKey) fetchModels(aiSettings.apiKey);
             }}
             className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
@@ -735,7 +732,6 @@ export default function SettingsPage() {
             onClick={async () => {
               setAiTestStatus("testing");
               setAiTestError("");
-              // Save first so askAI reads the latest settings
               saveAiSettings(aiSettings);
               try {
                 await askAI({ system: "Reply with just OK.", userMessage: "Test", maxTokens: 16 });
@@ -746,7 +742,7 @@ export default function SettingsPage() {
               }
             }}
             disabled={aiTestStatus === "testing"}
-            className="px-4 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5"
+            className="px-4 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 disabled:opacity-50 text-gray-900 dark:text-white py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5"
           >
             {aiTestStatus === "testing" ? (
               <Loader2 size={13} className="animate-spin" />
@@ -768,9 +764,9 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="bg-slate-800 rounded-2xl p-4">
-        <h2 className="text-sm font-semibold text-slate-300 mb-2">About</h2>
-        <p className="text-xs text-slate-400 leading-relaxed">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+        <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-2">About</h2>
+        <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
           FitLife v2.0 — Your personal health and fitness tracker. Data is stored
           locally on your device. Supports multiple profiles and AI-powered features.
         </p>
@@ -795,10 +791,8 @@ function MacroSlider({
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-slate-300">{label}</span>
-        <span className="text-xs text-slate-400">
-          {pct}% · {grams}g
-        </span>
+        <span className="text-xs text-gray-600 dark:text-slate-300">{label}</span>
+        <span className="text-xs text-gray-500 dark:text-slate-400">{pct}% · {grams}g</span>
       </div>
       <input
         type="range"
@@ -806,11 +800,11 @@ function MacroSlider({
         max={70}
         value={pct}
         onChange={(e) => onChange(parseInt(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-slate-700
-          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md
-          [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
+        className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-gray-200 dark:bg-slate-700
+          [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-teal-500 [&::-webkit-slider-thumb]:shadow-md
+          [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-teal-500 [&::-moz-range-thumb]:border-0"
       />
-      <div className="h-1 bg-slate-700 rounded-full -mt-2.5 mb-2 pointer-events-none overflow-hidden">
+      <div className="h-1 bg-gray-200 dark:bg-slate-700 rounded-full -mt-2.5 mb-2 pointer-events-none overflow-hidden">
         <div
           className={`h-full ${color} rounded-full transition-all`}
           style={{ width: `${(pct / 70) * 100}%` }}
