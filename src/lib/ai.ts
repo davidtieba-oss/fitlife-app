@@ -1,4 +1,4 @@
-import { getAiSettings, type AIProvider } from "./storage";
+import { getAiSettings, type AIProvider } from "./ai-providers";
 
 interface AskAIOptions {
   system?: string;
