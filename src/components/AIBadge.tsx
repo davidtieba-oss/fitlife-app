@@ -7,7 +7,7 @@ import {
   getActiveModelInfo,
   PROVIDER_LABELS,
   type AiSettings,
-} from "@/lib/storage";
+} from "@/lib/ai-providers";
 
 interface AIBadgeProps {
   /** Optional prefix, e.g. "Coach" renders "Coach powered by …". */
