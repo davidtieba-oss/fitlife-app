@@ -33,6 +33,7 @@ import {
 import { askAI } from "@/lib/ai";
 import { ListSkeleton } from "@/components/Skeleton";
 import Toast from "@/components/Toast";
+import AIBadge from "@/components/AIBadge";
 
 const DIETS = ["No Restriction", "High Protein", "Low Carb", "Mediterranean", "Vegetarian", "Vegan"];
 const MEALS_PER_DAY = [3, 4, 5];
@@ -226,7 +227,10 @@ Requirements:
     <div className="space-y-4">
       {toast && <Toast message={toast} onClose={() => setToast("")} />}
 
-      <h1 className="text-xl font-bold">Meal Plan</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Meal Plan</h1>
+        <AIBadge label="Meal Plan" />
+      </div>
 
       {/* Nutrition targets reference */}
       <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">

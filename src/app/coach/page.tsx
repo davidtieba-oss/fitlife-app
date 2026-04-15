@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ListSkeleton } from "@/components/Skeleton";
 import { askAIChat } from "@/lib/ai";
+import { fetchAiStatus } from "@/lib/ai-providers";
 import {
   getSettings,
   getMacroTargets,
@@ -22,14 +23,12 @@ import {
   getMeals,
   getDailyMacros,
   getWater,
-  getAiSettings,
   getChatHistory,
   saveChatHistory,
   clearChatHistory,
-  AI_MODELS_FALLBACK,
-  getCachedModels,
   type ChatMessage,
 } from "@/lib/storage";
+import AIBadge from "@/components/AIBadge";
 
 const SUGGESTIONS = [
   "How am I doing this week?",
@@ -58,9 +57,8 @@ export default function CoachPage() {
   useEffect(() => {
     setMounted(true);
     loadChat();
-    fetch("/api/ai/status")
-      .then((r) => r.json())
-      .then((d) => setAiConfigured(d.configured))
+    fetchAiStatus()
+      .then((s) => setAiConfigured(s.anthropic || s.mistral))
       .catch(() => setAiConfigured(false));
   }, [loadChat]);
 
@@ -74,11 +72,7 @@ export default function CoachPage() {
     );
   }
 
-  const aiSettings = getAiSettings();
-  const models = getCachedModels() ?? AI_MODELS_FALLBACK;
-  const modelName = models.find((m) => m.id === aiSettings.model)?.name ?? aiSettings.model;
-
-  // No API key configured on server
+  // No provider configured on server
   if (aiConfigured === false) {
     return (
       <div className="space-y-4">
@@ -90,9 +84,19 @@ export default function CoachPage() {
           <div>
             <p className="text-sm font-medium text-gray-900 dark:text-white">AI not configured</p>
             <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-              Add <code className="text-violet-500 dark:text-violet-400 font-mono text-[11px]">ANTHROPIC_API_KEY</code> in your hosting environment variables to enable the AI coach.
+              Add{" "}
+              <code className="text-violet-500 dark:text-violet-400 font-mono text-[11px]">ANTHROPIC_API_KEY</code>
+              {" "}or{" "}
+              <code className="text-violet-500 dark:text-violet-400 font-mono text-[11px]">MISTRAL_API_KEY</code>
+              {" "}in your Vercel environment variables to enable the AI coach.
             </p>
           </div>
+          <Link
+            href="/settings"
+            className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-xs font-semibold transition"
+          >
+            <Settings size={14} /> Go to AI Settings
+          </Link>
         </div>
       </div>
     );
@@ -231,7 +235,7 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
           </div>
           <div>
             <h1 className="text-lg font-bold leading-tight">AI Coach</h1>
-            <p className="text-[10px] text-gray-400 dark:text-slate-500">Using {modelName}</p>
+            <AIBadge label="Coach" />
           </div>
         </div>
         {messages.length > 0 && (

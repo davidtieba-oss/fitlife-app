@@ -14,25 +14,18 @@ import {
   importProfileData,
   clearProfileData,
   PROFILE_COLORS,
-  getAiSettings,
-  saveAiSettings,
-  AI_MODELS_FALLBACK,
-  getCachedModels,
-  saveCachedModels,
   getReminders,
   saveReminders,
   type UserSettings,
   type WeightGoal,
   type Profile,
-  type AiSettings,
-  type AiModelInfo,
   type ReminderSettings,
 } from "@/lib/storage";
-import { askAI } from "@/lib/ai";
 import { useProfile } from "@/lib/ProfileContext";
 import { useTheme } from "@/lib/ThemeProvider";
 import Toast from "@/components/Toast";
 import { SettingsSkeleton } from "@/components/Skeleton";
+import AISettings from "@/components/AISettings";
 import {
   Trash2,
   Plus,
@@ -41,12 +34,6 @@ import {
   AlertTriangle,
   Check,
   X,
-  Sparkles,
-  Zap,
-  Loader2,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
   Sun,
   Moon,
   Monitor,
@@ -99,68 +86,14 @@ export default function SettingsPage() {
   const [reminders, setReminders] = useState<ReminderSettings>({ weighIn: false, meals: false, workout: false, water: false });
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
 
-  // AI settings state
-  const [aiSettings, setAiSettingsState] = useState<AiSettings>({ model: "claude-sonnet-4-6" });
-  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
-  const [aiTestStatus, setAiTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
-  const [aiTestError, setAiTestError] = useState("");
-  const [aiModels, setAiModels] = useState<AiModelInfo[]>(AI_MODELS_FALLBACK);
-  const [modelsLoading, setModelsLoading] = useState(false);
-
-  async function fetchModels() {
-    setModelsLoading(true);
-    try {
-      const res = await fetch("/api/models");
-      if (!res.ok) throw new Error("Failed to fetch models");
-      const data = await res.json();
-      const allModels: Array<{ id: string; display_name?: string; capabilities?: { image_input?: boolean } }> =
-        data.data ?? data;
-      const imageCapable = allModels.filter(
-        (m) => m.capabilities?.image_input !== false
-      );
-      function sortKey(id: string): number {
-        if (id.includes("haiku")) return 0;
-        if (id.includes("sonnet")) return 1;
-        if (id.includes("opus")) return 2;
-        return 3;
-      }
-      imageCapable.sort((a, b) => sortKey(a.id) - sortKey(b.id) || a.id.localeCompare(b.id));
-      const mapped: AiModelInfo[] = imageCapable.map((m) => {
-        const name = m.display_name || m.id;
-        let costNote = "";
-        if (m.id.includes("haiku")) costNote = "~$0.001/req";
-        else if (m.id.includes("sonnet")) costNote = "~$0.01/req";
-        else if (m.id.includes("opus")) costNote = "~$0.05/req";
-        return { id: m.id, name, desc: m.id, costNote };
-      });
-      if (mapped.length > 0) {
-        setAiModels(mapped);
-        saveCachedModels(mapped);
-      }
-    } catch {
-      // Fall back to hardcoded list
-    } finally {
-      setModelsLoading(false);
-    }
-  }
-
   useEffect(() => {
     setMounted(true);
     setSettings(getSettings());
     setProfiles(getProfiles());
-    setAiSettingsState(getAiSettings());
     setReminders(getReminders());
     if (typeof Notification !== "undefined") {
       setNotifPermission(Notification.permission);
     }
-    const cached = getCachedModels();
-    if (cached && cached.length > 0) {
-      setAiModels(cached);
-    }
-    fetch("/api/ai/status")
-      .then((r) => r.json())
-      .then((d) => setAiConfigured(d.configured))
-      .catch(() => setAiConfigured(false));
   }, [activeId]);
 
   if (!mounted) {
@@ -662,110 +595,7 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* AI Settings */}
-      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Sparkles size={14} className="text-violet-400" />
-          <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">AI Settings</h2>
-        </div>
-
-        <div>
-          {aiConfigured === null ? (
-            <p className="text-xs text-gray-400 dark:text-slate-500">Checking AI status…</p>
-          ) : aiConfigured ? (
-            <span className="inline-flex items-center gap-1.5 bg-green-500/15 text-green-600 dark:text-green-400 text-xs font-medium px-3 py-1.5 rounded-full">
-              <CheckCircle size={13} /> AI Connected
-            </span>
-          ) : (
-            <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
-              AI not configured — add <code className="text-violet-500 dark:text-violet-400 font-mono text-[11px]">ANTHROPIC_API_KEY</code> in your hosting environment variables.
-            </p>
-          )}
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">Model</label>
-            <button
-              type="button"
-              onClick={() => fetchModels()}
-              disabled={modelsLoading}
-              className="flex items-center gap-1 text-[10px] text-violet-500 dark:text-violet-400 hover:text-violet-400 dark:hover:text-violet-300 disabled:opacity-50 transition"
-            >
-              <RefreshCw size={10} className={modelsLoading ? "animate-spin" : ""} />
-              {modelsLoading ? "Loading..." : "Refresh Models"}
-            </button>
-          </div>
-          <div className="space-y-1.5">
-            {aiModels.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setAiSettingsState({ ...aiSettings, model: m.id })}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition ${
-                  aiSettings.model === m.id
-                    ? "bg-violet-600/20 border border-violet-500/30"
-                    : "bg-gray-200 dark:bg-slate-700 border border-transparent"
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-gray-900 dark:text-white">{m.name}</p>
-                  <p className="text-[10px] text-gray-500 dark:text-slate-400 truncate">{m.desc}</p>
-                </div>
-                {m.costNote && (
-                  <span className="text-[10px] text-gray-400 dark:text-slate-500 shrink-0 ml-2">{m.costNote}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              saveAiSettings(aiSettings);
-              setToast("AI settings saved!");
-              fetchModels();
-            }}
-            className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
-          >
-            <Sparkles size={13} /> Save AI Settings
-          </button>
-          <button
-            onClick={async () => {
-              setAiTestStatus("testing");
-              setAiTestError("");
-              saveAiSettings(aiSettings);
-              try {
-                await askAI({ system: "Reply with just OK.", userMessage: "Test", maxTokens: 16 });
-                setAiTestStatus("success");
-              } catch (err) {
-                setAiTestStatus("error");
-                setAiTestError(err instanceof Error ? err.message : "Connection failed");
-              }
-            }}
-            disabled={aiTestStatus === "testing"}
-            className="px-4 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 disabled:opacity-50 text-gray-900 dark:text-white py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5"
-          >
-            {aiTestStatus === "testing" ? (
-              <Loader2 size={13} className="animate-spin" />
-            ) : aiTestStatus === "success" ? (
-              <CheckCircle size={13} className="text-green-400" />
-            ) : aiTestStatus === "error" ? (
-              <XCircle size={13} className="text-red-400" />
-            ) : (
-              <Zap size={13} />
-            )}
-            Test
-          </button>
-        </div>
-        {aiTestStatus === "error" && aiTestError && (
-          <p className="text-[10px] text-red-400">{aiTestError}</p>
-        )}
-        {aiTestStatus === "success" && (
-          <p className="text-[10px] text-green-400">Connection successful!</p>
-        )}
-      </div>
+      <AISettings onToast={setToast} />
 
       <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
         <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-2">About</h2>

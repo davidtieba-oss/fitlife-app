@@ -1,13 +1,14 @@
-import { getAiSettings, type AIProvider } from "./storage";
+import { getAiSettings, defaultModelFor, type AIProvider } from "./ai-providers";
 
 interface AskAIOptions {
   system?: string;
   userMessage: string;
-  imageBase64?: string;
+  /** Base64 data-URL of an image. When present, always routes to Anthropic. */
+  image?: string;
   maxTokens?: number;
-  /** Override the provider chosen in settings. Ignored when `imageBase64` is set. */
+  /** Override the provider chosen in settings. Ignored when `image` is set. */
   provider?: AIProvider;
-  /** Override the model chosen for the active provider. */
+  /** Override the model for the resolved provider. */
   model?: string;
 }
 
@@ -30,12 +31,20 @@ function resolveRoute(opts: {
 }): { provider: AIProvider; model: string } {
   const settings = getAiSettings();
   if (opts.hasImage) {
-    return { provider: "anthropic", model: settings.anthropicModel };
+    // Vision is Anthropic-only — use the anthropic model from settings if
+    // already on anthropic, otherwise fall back to the anthropic default.
+    const model =
+      settings.provider === "anthropic"
+        ? settings.model
+        : defaultModelFor("anthropic");
+    return { provider: "anthropic", model };
   }
   const provider = opts.provider ?? settings.provider;
   const model =
     opts.model ??
-    (provider === "mistral" ? settings.mistralModel : settings.anthropicModel);
+    (provider === settings.provider
+      ? settings.model
+      : defaultModelFor(provider));
   return { provider, model };
 }
 
@@ -45,17 +54,17 @@ function resolveRoute(opts: {
  * Image prompts are always routed to Anthropic.
  */
 export async function askAI(options: AskAIOptions): Promise<string> {
-  const { system, userMessage, imageBase64, maxTokens } = options;
+  const { system, userMessage, image, maxTokens } = options;
   const { provider, model } = resolveRoute({
     provider: options.provider,
     model: options.model,
-    hasImage: Boolean(imageBase64),
+    hasImage: Boolean(image),
   });
 
   if (provider === "anthropic") {
     let content: unknown;
-    if (imageBase64) {
-      const match = imageBase64.match(/^data:(image\/\w+);base64,(.+)$/);
+    if (image) {
+      const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
       if (!match) throw new Error("Invalid image data");
       const [, mediaType, data] = match;
       content = [

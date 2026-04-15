@@ -43,6 +43,7 @@ import { exercises as exerciseDb, type Exercise } from "@/data/exercises";
 import Toast from "@/components/Toast";
 import ExercisePicker from "@/components/ExercisePicker";
 import RestTimer from "@/components/RestTimer";
+import AIBadge from "@/components/AIBadge";
 import { ListSkeleton } from "@/components/Skeleton";
 
 type View = "new" | "history" | "ai";
@@ -626,6 +627,9 @@ Requirements:
 
       {view === "ai" && (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <AIBadge label="Workout Plan" />
+          </div>
           {/* Plan viewer */}
           {viewingPlan ? (
             <div className="space-y-3">
