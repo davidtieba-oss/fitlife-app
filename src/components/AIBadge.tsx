@@ -17,7 +17,7 @@ interface AIBadgeProps {
 
 /**
  * Small pill showing which AI provider + model is currently active.
- * Re-reads settings when the `fitlife_ai_settings` localStorage key changes
+ * Re-reads settings when the `ai_settings` localStorage key changes
  * so other tabs / the settings page update the badge live.
  */
 export default function AIBadge({ label, className }: AIBadgeProps) {
@@ -26,7 +26,7 @@ export default function AIBadge({ label, className }: AIBadgeProps) {
   useEffect(() => {
     setSettings(getAiSettings());
     function onStorage(e: StorageEvent) {
-      if (!e.key || e.key === "fitlife_ai_settings") {
+      if (!e.key || e.key === "ai_settings") {
         setSettings(getAiSettings());
       }
     }
@@ -41,7 +41,7 @@ export default function AIBadge({ label, className }: AIBadgeProps) {
   const modelName = modelInfo?.name ?? settings.model;
   const text = label
     ? `${label} powered by ${providerName} ${modelName}`
-    : `${providerName} · ${modelName}`;
+    : `Powered by ${providerName} ${modelName}`;
 
   return (
     <span

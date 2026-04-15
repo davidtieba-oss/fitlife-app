@@ -212,7 +212,7 @@ Be realistic with portion sizes. If uncertain, provide your best estimate and no
           type === "text"
             ? `Estimate the nutritional content of this meal: ${content}`
             : "Look at this photo of food. Estimate the portion sizes and nutritional content. Return ONLY valid JSON with the format specified.",
-        imageBase64: type === "image" ? content : undefined,
+        image: type === "image" ? content : undefined,
         maxTokens: 1024,
       });
       const jsonMatch = text.match(/\{[\s\S]*\}/);

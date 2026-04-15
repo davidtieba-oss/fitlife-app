@@ -1,27 +1,15 @@
 // Multi-provider AI settings surface.
-//
-// Lives outside src/lib/storage.ts so the much larger storage module can stay
-// untouched while AIBadge.tsx and ai.ts compile against the new shape.
-//
-// Reads/writes the same `fitlife_ai_settings` localStorage key that
-// storage.ts uses, so older clients reading `settings.model` keep working
-// (we mirror the active provider's model into a `model` field on read).
+// All new AI logic lives here; src/lib/storage.ts AI exports are legacy dead code.
 
 export type AIProvider = "anthropic" | "mistral";
 
 export const PROVIDER_LABELS: Record<AIProvider, string> = {
-  anthropic: "Claude",
+  anthropic: "Anthropic",
   mistral: "Mistral",
 };
 
 export interface AiSettings {
   provider: AIProvider;
-  anthropicModel: string;
-  mistralModel: string;
-  /**
-   * Legacy mirror of the active provider's model. Kept in sync by
-   * getAiSettings so display code reading `settings.model` keeps working.
-   */
   model: string;
 }
 
@@ -29,33 +17,62 @@ export interface AiModelInfo {
   id: string;
   name: string;
   desc: string;
-  costNote: string;
-  provider?: AIProvider;
+  costNote?: string;
+  provider: AIProvider;
 }
 
-export const AI_MODELS_FALLBACK: AiModelInfo[] = [
-  { id: "claude-haiku-4-5-20251001", name: "Haiku 4.5", desc: "Fastest & cheapest", costNote: "~$0.001/request", provider: "anthropic" },
-  { id: "claude-sonnet-4-6", name: "Sonnet 4.6", desc: "Fast & smart — recommended", costNote: "~$0.01/request", provider: "anthropic" },
-  { id: "claude-opus-4-6", name: "Opus 4.6", desc: "Most capable", costNote: "~$0.05/request", provider: "anthropic" },
-  { id: "mistral-small-latest", name: "Mistral Small", desc: "Cheap & fast", costNote: "~$0.001/request", provider: "mistral" },
-  { id: "mistral-large-latest", name: "Mistral Large", desc: "Most capable Mistral", costNote: "~$0.01/request", provider: "mistral" },
+export const AI_MODELS: AiModelInfo[] = [
+  {
+    id: "claude-haiku-4-5-20251001",
+    name: "Haiku 4.5",
+    desc: "Fast & cheap",
+    costNote: "~$0.001/request",
+    provider: "anthropic",
+  },
+  {
+    id: "claude-sonnet-4-6",
+    name: "Sonnet 4.6",
+    desc: "Balanced",
+    costNote: "~$0.01/request",
+    provider: "anthropic",
+  },
+  {
+    id: "claude-opus-4-6",
+    name: "Opus 4.6",
+    desc: "Most capable",
+    costNote: "~$0.05/request",
+    provider: "anthropic",
+  },
+  {
+    id: "mistral-small-latest",
+    name: "Mistral Small 4",
+    desc: "Fast & very cheap (EU)",
+    costNote: "~$0.001/request",
+    provider: "mistral",
+  },
+  {
+    id: "mistral-large-latest",
+    name: "Mistral Large 3",
+    desc: "Most capable (EU)",
+    costNote: "~$0.01/request",
+    provider: "mistral",
+  },
 ];
 
-const DEFAULT_AI_SETTINGS: AiSettings = {
-  provider: "anthropic",
-  anthropicModel: "claude-sonnet-4-6",
-  mistralModel: "mistral-large-latest",
-  model: "claude-sonnet-4-6",
+export const DEFAULT_MODEL_BY_PROVIDER: Record<AIProvider, string> = {
+  anthropic: "claude-sonnet-4-6",
+  mistral: "mistral-large-latest",
 };
 
-const SETTINGS_KEY = "fitlife_ai_settings";
-const MODELS_CACHE_KEY = "fitlife_models_cache";
-const MODEL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-
-interface CachedModels {
-  models: AiModelInfo[];
-  fetchedAt: number;
+export function modelsForProvider(p: AIProvider): AiModelInfo[] {
+  return AI_MODELS.filter((m) => m.provider === p);
 }
+
+export function defaultModelFor(p: AIProvider): string {
+  return DEFAULT_MODEL_BY_PROVIDER[p];
+}
+
+const SETTINGS_KEY = "ai_settings";
 
 function readJSON<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -67,32 +84,35 @@ function readJSON<T>(key: string, fallback: T): T {
   }
 }
 
-function writeJSON<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
 export function getAiSettings(): AiSettings {
   const stored = readJSON<Partial<AiSettings>>(SETTINGS_KEY, {});
-  const merged: AiSettings = { ...DEFAULT_AI_SETTINGS, ...stored };
-  // Keep legacy `model` field synced to the active provider's model.
-  merged.model = merged.provider === "mistral" ? merged.mistralModel : merged.anthropicModel;
-  return merged;
+  const provider: AIProvider =
+    stored.provider === "anthropic" || stored.provider === "mistral"
+      ? stored.provider
+      : "anthropic";
+  const validIds = new Set(modelsForProvider(provider).map((m) => m.id));
+  const model =
+    stored.model && validIds.has(stored.model)
+      ? stored.model
+      : DEFAULT_MODEL_BY_PROVIDER[provider];
+  return { provider, model };
 }
 
-export function saveAiSettings(settings: AiSettings): void {
-  writeJSON(SETTINGS_KEY, settings);
+export function saveAiSettings(s: AiSettings): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 }
 
-function getCachedModelList(): AiModelInfo[] | null {
-  const cached = readJSON<CachedModels | null>(MODELS_CACHE_KEY, null);
-  if (!cached) return null;
-  if (Date.now() - cached.fetchedAt > MODEL_CACHE_TTL_MS) return null;
-  return cached.models;
+export function getActiveModelInfo(s: AiSettings): AiModelInfo | undefined {
+  return AI_MODELS.find((m) => m.id === s.model);
 }
 
-export function getActiveModelInfo(settings: AiSettings): AiModelInfo | undefined {
-  const list = getCachedModelList() ?? AI_MODELS_FALLBACK;
-  const activeId = settings.provider === "mistral" ? settings.mistralModel : settings.anthropicModel;
-  return list.find((m) => m.id === activeId);
+export interface AiStatus {
+  anthropic: boolean;
+  mistral: boolean;
+}
+
+export async function fetchAiStatus(): Promise<AiStatus> {
+  const res = await fetch("/api/ai/status");
+  return res.json() as Promise<AiStatus>;
 }
