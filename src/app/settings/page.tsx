@@ -16,11 +16,20 @@ import {
   PROFILE_COLORS,
   getReminders,
   saveReminders,
+  getVoiceSettings,
+  saveVoiceSettings,
+  VOICE_OPTIONS,
+  getTtsUsage,
+  ttsCostForChars,
+  currentTtsMonth,
   type UserSettings,
   type WeightGoal,
   type Profile,
   type ReminderSettings,
+  type VoiceSettings,
+  type VoiceId,
 } from "@/lib/storage";
+import { requestTtsAudio } from "@/lib/tts";
 import { useProfile } from "@/lib/ProfileContext";
 import { useTheme } from "@/lib/ThemeProvider";
 import Toast from "@/components/Toast";
@@ -42,6 +51,13 @@ import {
   Utensils,
   Dumbbell,
   Droplets,
+  Loader2,
+  CheckCircle,
+  XCircle,
+  Volume2,
+  Play,
+  Square,
+  Zap,
 } from "lucide-react";
 
 const GOAL_OPTIONS: { value: WeightGoal; label: string; desc: string }[] = [
@@ -86,6 +102,20 @@ export default function SettingsPage() {
   const [reminders, setReminders] = useState<ReminderSettings>({ weighIn: false, meals: false, workout: false, water: false });
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>("default");
 
+  // Voice (TTS) settings — profile-scoped.
+  const [voiceSettings, setVoiceSettingsState] = useState<VoiceSettings>({
+    enabled: false,
+    voice: "Jessica",
+    autoPlay: false,
+    language: "en",
+  });
+  const [previewingVoice, setPreviewingVoice] = useState<VoiceId | null>(null);
+  const [voiceTestStatus, setVoiceTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [voiceTestError, setVoiceTestError] = useState("");
+  const [ttsMonthlyChars, setTtsMonthlyChars] = useState(0);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
     setMounted(true);
     setSettings(getSettings());
@@ -94,7 +124,93 @@ export default function SettingsPage() {
     if (typeof Notification !== "undefined") {
       setNotifPermission(Notification.permission);
     }
+    setVoiceSettingsState(getVoiceSettings(activeId));
+    setTtsMonthlyChars(getTtsUsage());
   }, [activeId]);
+
+  // Cleanup preview audio on unmount.
+  useEffect(() => {
+    return () => {
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current = null;
+      }
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  function updateVoice(next: VoiceSettings) {
+    setVoiceSettingsState(next);
+    saveVoiceSettings(activeId, next);
+  }
+
+  function stopPreview() {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+    }
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreviewingVoice(null);
+  }
+
+  async function handlePreviewVoice(voiceId: VoiceId) {
+    if (previewingVoice === voiceId) {
+      stopPreview();
+      return;
+    }
+    stopPreview();
+    setPreviewingVoice(voiceId);
+    try {
+      const { url } = await requestTtsAudio(
+        "Hi! I'm your fitness coach. Let's get to work!",
+        voiceId,
+        voiceSettings.language
+      );
+      previewUrlRef.current = url;
+      const audio = new Audio(url);
+      previewAudioRef.current = audio;
+      audio.onended = () => {
+        setPreviewingVoice(null);
+        if (previewUrlRef.current === url) {
+          URL.revokeObjectURL(url);
+          previewUrlRef.current = null;
+        }
+      };
+      await audio.play();
+      setTtsMonthlyChars(getTtsUsage());
+    } catch (err) {
+      setPreviewingVoice(null);
+      setToast(
+        err instanceof Error
+          ? `Voice unavailable — ${err.message}`
+          : "Voice unavailable — read the message instead"
+      );
+    }
+  }
+
+  async function handleTestVoice() {
+    setVoiceTestStatus("testing");
+    setVoiceTestError("");
+    try {
+      const { url } = await requestTtsAudio(
+        "Test successful.",
+        voiceSettings.voice,
+        voiceSettings.language
+      );
+      URL.revokeObjectURL(url);
+      setVoiceTestStatus("success");
+      setTtsMonthlyChars(getTtsUsage());
+    } catch (err) {
+      setVoiceTestStatus("error");
+      setVoiceTestError(err instanceof Error ? err.message : "TTS unavailable");
+    }
+  }
 
   if (!mounted) {
     return <SettingsSkeleton />;
@@ -596,6 +712,153 @@ export default function SettingsPage() {
       </div>
 
       <AISettings onToast={setToast} />
+
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Volume2 size={13} className="text-violet-400" />
+          <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">Voice</h2>
+        </div>
+
+        {/* Enable Voice toggle */}
+        <label className="flex items-center justify-between bg-white dark:bg-slate-700 rounded-lg px-3 py-2.5 cursor-pointer">
+          <div>
+            <p className="text-xs font-medium text-gray-700 dark:text-white">Enable Voice</p>
+            <p className="text-[10px] text-gray-500 dark:text-slate-400">
+              Show speaker buttons on coach messages
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            checked={voiceSettings.enabled}
+            onChange={(e) =>
+              updateVoice({ ...voiceSettings, enabled: e.target.checked })
+            }
+            className="w-4 h-4 accent-violet-500"
+          />
+        </label>
+
+        {/* Voice selection */}
+        <div>
+          <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+            Voice Selection
+          </label>
+          <div className="space-y-1.5 mt-1">
+            {VOICE_OPTIONS.map((v) => {
+              const selected = voiceSettings.voice === v.id;
+              const isPlaying = previewingVoice === v.id;
+              return (
+                <div
+                  key={v.id}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${
+                    selected
+                      ? "bg-violet-600/20 border border-violet-500/30"
+                      : "bg-white dark:bg-slate-700 border border-transparent"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateVoice({ ...voiceSettings, voice: v.id })
+                    }
+                    className="flex-1 text-left min-w-0"
+                  >
+                    <p className="text-xs font-medium text-gray-700 dark:text-white">{v.label}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">{v.desc}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePreviewVoice(v.id)}
+                    className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-md transition ${
+                      isPlaying
+                        ? "bg-violet-600 text-white"
+                        : "bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200"
+                    }`}
+                  >
+                    {isPlaying ? (
+                      <>
+                        <Square size={10} /> Stop
+                      </>
+                    ) : (
+                      <>
+                        <Play size={10} /> Preview
+                      </>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Auto-play toggle */}
+        <label className="flex items-center justify-between bg-white dark:bg-slate-700 rounded-lg px-3 py-2.5 cursor-pointer">
+          <div>
+            <p className="text-xs font-medium text-gray-700 dark:text-white">Auto-play</p>
+            <p className="text-[10px] text-gray-500 dark:text-slate-400">
+              Automatically speak new coach replies
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            checked={voiceSettings.autoPlay}
+            onChange={(e) =>
+              updateVoice({ ...voiceSettings, autoPlay: e.target.checked })
+            }
+            className="w-4 h-4 accent-violet-500"
+          />
+        </label>
+
+        {/* Test Voice + Save */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              saveVoiceSettings(activeId, voiceSettings);
+              setToast("Voice settings saved!");
+            }}
+            className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
+          >
+            <Volume2 size={12} /> Save Voice
+          </button>
+          <button
+            type="button"
+            onClick={handleTestVoice}
+            disabled={voiceTestStatus === "testing"}
+            className="px-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 text-slate-700 dark:text-white py-2 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5"
+          >
+            {voiceTestStatus === "testing" ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : voiceTestStatus === "success" ? (
+              <CheckCircle size={12} className="text-green-400" />
+            ) : voiceTestStatus === "error" ? (
+              <XCircle size={12} className="text-red-400" />
+            ) : (
+              <Zap size={12} />
+            )}
+            Test Voice
+          </button>
+        </div>
+        {voiceTestStatus === "error" && voiceTestError && (
+          <p className="text-[10px] text-red-400">{voiceTestError}</p>
+        )}
+        {voiceTestStatus === "success" && (
+          <p className="text-[10px] text-green-400">TTS endpoint works!</p>
+        )}
+
+        {/* Cost counter */}
+        <div className="bg-slate-200/60 dark:bg-slate-700/50 rounded-lg px-3 py-2">
+          <p className="text-[10px] text-gray-500 dark:text-slate-400">
+            This month ({currentTtsMonth()}):{" "}
+            <span className="text-gray-700 dark:text-slate-200 font-medium">
+              ~{ttsMonthlyChars.toLocaleString()} characters
+            </span>{" "}
+            (~${ttsCostForChars(ttsMonthlyChars).toFixed(3)})
+          </p>
+          <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">
+            Voxtral TTS: $0.016 per 1,000 characters · Requires MISTRAL_API_KEY env var
+          </p>
+        </div>
+      </div>
 
       <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
         <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-2">About</h2>

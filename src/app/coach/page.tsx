@@ -11,6 +11,8 @@ import {
   Utensils,
   Settings,
   Bot,
+  Volume2,
+  Square,
 } from "lucide-react";
 import { ListSkeleton } from "@/components/Skeleton";
 import { askAIChat } from "@/lib/ai";
@@ -26,9 +28,15 @@ import {
   getChatHistory,
   saveChatHistory,
   clearChatHistory,
+  getVoiceSettings,
+  getActiveProfileId,
   type ChatMessage,
+  type VoiceSettings,
 } from "@/lib/storage";
 import AIBadge from "@/components/AIBadge";
+import { prepareTtsText, chunkTextForTts, requestTtsAudio } from "@/lib/tts";
+import CoachAudioPlayer from "@/components/CoachAudioPlayer";
+import Toast from "@/components/Toast";
 
 const SUGGESTIONS = [
   "How am I doing this week?",
@@ -50,6 +58,27 @@ export default function CoachPage() {
 
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
 
+  // --- TTS state ---
+  const [voiceSettings, setVoiceSettingsState] = useState<VoiceSettings>({
+    enabled: false,
+    voice: "Jessica",
+    autoPlay: false,
+    language: "en",
+  });
+  const [hasMistralKey, setHasMistralKey] = useState(false);
+  const [ttsToast, setTtsToast] = useState("");
+  const [playingMsgIdx, setPlayingMsgIdx] = useState<number | null>(null);
+  const [currentAudioUrl, setCurrentAudioUrl] = useState<string | null>(null);
+  const [chunkProgress, setChunkProgress] = useState<{ current: number; total: number } | null>(
+    null
+  );
+  const [loadingAudioIdx, setLoadingAudioIdx] = useState<number | null>(null);
+  // Cached per-message audio URLs (in-memory only, keyed by message index).
+  const audioCacheRef = useRef<Map<number, string[]>>(new Map());
+  // Track which chunk is next for the currently playing message.
+  const playQueueRef = useRef<{ msgIdx: number; chunks: string[]; chunkIdx: number } | null>(null);
+  const autoPlayedIdxRef = useRef<number>(-1);
+
   const loadChat = useCallback(() => {
     setMessages(getChatHistory());
   }, []);
@@ -58,13 +87,44 @@ export default function CoachPage() {
     setMounted(true);
     loadChat();
     fetchAiStatus()
-      .then((s) => setAiConfigured(s.anthropic || s.mistral))
+      .then((s) => {
+        setAiConfigured(s.anthropic || s.mistral);
+        setHasMistralKey(s.mistral);
+      })
       .catch(() => setAiConfigured(false));
+    const pid = getActiveProfileId();
+    setVoiceSettingsState(getVoiceSettings(pid));
   }, [loadChat]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Revoke cached audio URLs when the chat is cleared / unmounted.
+  useEffect(() => {
+    const cache = audioCacheRef.current;
+    return () => {
+      for (const urls of cache.values()) {
+        for (const u of urls) URL.revokeObjectURL(u);
+      }
+      cache.clear();
+    };
+  }, []);
+
+  // Auto-play newest assistant message when enabled.
+  // Declared up here (with the other hooks) so it runs before any early return.
+  // `handleSpeak` is stable enough for this dependency set — intentionally omitted.
+  useEffect(() => {
+    if (!voiceSettings.enabled || !voiceSettings.autoPlay || !hasMistralKey) return;
+    if (loading || messages.length === 0) return;
+    const lastIdx = messages.length - 1;
+    const last = messages[lastIdx];
+    if (last.role !== "assistant") return;
+    if (autoPlayedIdxRef.current >= lastIdx) return;
+    autoPlayedIdxRef.current = lastIdx;
+    handleSpeak(lastIdx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, loading, voiceSettings.enabled, voiceSettings.autoPlay, hasMistralKey]);
 
   if (!mounted) {
     return (
@@ -213,9 +273,92 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
   }
 
   function handleNewChat() {
+    stopPlayback();
+    for (const urls of audioCacheRef.current.values()) {
+      for (const u of urls) URL.revokeObjectURL(u);
+    }
+    audioCacheRef.current.clear();
     clearChatHistory();
     setMessages([]);
     setError("");
+  }
+
+  function stopPlayback() {
+    playQueueRef.current = null;
+    setPlayingMsgIdx(null);
+    setCurrentAudioUrl(null);
+    setChunkProgress(null);
+  }
+
+  async function ensureChunkAudio(
+    msgIdx: number,
+    chunks: string[]
+  ): Promise<string[]> {
+    const cached = audioCacheRef.current.get(msgIdx);
+    if (cached && cached.length === chunks.length) return cached;
+
+    const urls: string[] = [];
+    for (const chunk of chunks) {
+      const { url } = await requestTtsAudio(
+        chunk,
+        voiceSettings.voice,
+        voiceSettings.language
+      );
+      urls.push(url);
+    }
+    audioCacheRef.current.set(msgIdx, urls);
+    return urls;
+  }
+
+  async function handleSpeak(msgIdx: number) {
+    if (playingMsgIdx === msgIdx) {
+      stopPlayback();
+      return;
+    }
+    const msg = messages[msgIdx];
+    if (!msg || msg.role !== "assistant") return;
+
+    stopPlayback();
+    setLoadingAudioIdx(msgIdx);
+    try {
+      const cleanText = prepareTtsText(msg.content);
+      const chunks = chunkTextForTts(cleanText);
+      const urls = await ensureChunkAudio(msgIdx, chunks);
+      playQueueRef.current = { msgIdx, chunks, chunkIdx: 0 };
+      setPlayingMsgIdx(msgIdx);
+      setChunkProgress({ current: 1, total: urls.length });
+      setCurrentAudioUrl(urls[0]);
+    } catch (err) {
+      setTtsToast(
+        err instanceof Error
+          ? `Voice unavailable — ${err.message}`
+          : "Voice unavailable — read the message instead"
+      );
+    } finally {
+      setLoadingAudioIdx(null);
+    }
+  }
+
+  function handleChunkEnded() {
+    const q = playQueueRef.current;
+    if (!q) {
+      stopPlayback();
+      return;
+    }
+    const nextIdx = q.chunkIdx + 1;
+    const urls = audioCacheRef.current.get(q.msgIdx);
+    if (!urls || nextIdx >= urls.length) {
+      stopPlayback();
+      return;
+    }
+    // Small pause between chunks.
+    setCurrentAudioUrl(null);
+    setTimeout(() => {
+      if (!playQueueRef.current || playQueueRef.current.msgIdx !== q.msgIdx) return;
+      playQueueRef.current = { ...q, chunkIdx: nextIdx };
+      setChunkProgress({ current: nextIdx + 1, total: urls.length });
+      setCurrentAudioUrl(urls[nextIdx]);
+    }, 250);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -277,35 +420,72 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <div key={i}>
-            <div
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
+        {messages.map((msg, i) => {
+          const isPlayingThis = playingMsgIdx === i;
+          const isLoadingThis = loadingAudioIdx === i;
+          return (
+            <div key={i}>
               <div
-                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
-                  msg.role === "user"
-                    ? "bg-teal-600 text-white"
-                    : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200"
+                className={`flex ${
+                  msg.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
-                {msg.role === "assistant" ? (
-                  <div className="text-xs leading-relaxed prose-sm">
-                    <RenderMarkdown text={msg.content} />
-                  </div>
-                ) : (
-                  <p className="text-xs leading-relaxed">{msg.content}</p>
-                )}
+                <div
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
+                    msg.role === "user"
+                      ? "bg-teal-600 text-white"
+                      : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200"
+                  }`}
+                >
+                  {msg.role === "assistant" ? (
+                    <div className="text-xs leading-relaxed prose-sm">
+                      <RenderMarkdown text={msg.content} />
+                    </div>
+                  ) : (
+                    <p className="text-xs leading-relaxed">{msg.content}</p>
+                  )}
+                  {/* Speaker button on assistant messages */}
+                  {msg.role === "assistant" &&
+                    voiceSettings.enabled &&
+                    hasMistralKey && (
+                      <button
+                        type="button"
+                        onClick={() => handleSpeak(i)}
+                        className={`mt-1.5 flex items-center gap-1 text-[10px] transition ${
+                          isPlayingThis
+                            ? "text-violet-400"
+                            : "text-slate-400 hover:text-violet-400"
+                        }`}
+                        aria-label={isPlayingThis ? "Stop audio" : "Play audio"}
+                      >
+                        {isPlayingThis ? (
+                          <>
+                            <Square size={11} /> Stop
+                          </>
+                        ) : isLoadingThis ? (
+                          <>
+                            <Volume2 size={11} className="animate-pulse" /> Loading…
+                          </>
+                        ) : (
+                          <>
+                            <Volume2
+                              size={11}
+                              className={isPlayingThis ? "animate-pulse" : ""}
+                            />
+                            Listen
+                          </>
+                        )}
+                      </button>
+                    )}
+                </div>
               </div>
+              {/* Smart action buttons for assistant messages */}
+              {msg.role === "assistant" && (
+                <SmartActions content={msg.content} />
+              )}
             </div>
-            {/* Smart action buttons for assistant messages */}
-            {msg.role === "assistant" && (
-              <SmartActions content={msg.content} />
-            )}
-          </div>
-        ))}
+          );
+        })}
 
         {loading && (
           <div className="flex justify-start">
@@ -328,6 +508,34 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Mini audio bar (appears while a coach message is being spoken) */}
+      {currentAudioUrl && playingMsgIdx !== null && (
+        <div className="pt-2">
+          <CoachAudioPlayer
+            src={currentAudioUrl}
+            label={
+              chunkProgress && chunkProgress.total > 1
+                ? `Playing ${chunkProgress.current}/${chunkProgress.total}…`
+                : "Playing coach reply"
+            }
+            onEnded={handleChunkEnded}
+            onClose={stopPlayback}
+          />
+        </div>
+      )}
+
+      {/* Auto-play indicator */}
+      {voiceSettings.enabled &&
+        voiceSettings.autoPlay &&
+        hasMistralKey &&
+        !currentAudioUrl && (
+          <div className="pt-2 flex justify-end">
+            <span className="text-[10px] text-violet-400 bg-violet-600/10 px-2 py-0.5 rounded-full">
+              🔊 Auto-play on
+            </span>
+          </div>
+        )}
+
       {/* Input bar */}
       <div className="pt-2 border-t border-gray-200 dark:border-slate-800">
         <div className="flex gap-2 items-end">
@@ -349,6 +557,7 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
           </button>
         </div>
       </div>
+      {ttsToast && <Toast message={ttsToast} onClose={() => setTtsToast("")} />}
     </div>
   );
 }

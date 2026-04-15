@@ -598,6 +598,7 @@ export function clearCheckedGrocery(): void {
 // --- AI Settings (global, shared across profiles) ---
 export interface AiSettings {
   model: string;
+  mistralApiKey?: string;
 }
 
 export interface AiModelInfo {
@@ -614,6 +615,74 @@ export const AI_MODELS_FALLBACK: AiModelInfo[] = [
 ];
 
 const DEFAULT_AI_SETTINGS: AiSettings = { model: "claude-sonnet-4-6" };
+
+// --- Voice / TTS Settings (profile-scoped, keyed as coach_voice_{profileId}) ---
+export type VoiceId = "Jessica" | "Laura" | "Jordan" | "Marcus";
+
+export interface VoiceOption {
+  id: VoiceId;
+  label: string;
+  desc: string;
+  gender: "female" | "male";
+}
+
+export const VOICE_OPTIONS: VoiceOption[] = [
+  { id: "Jessica", label: "Jessica", desc: "Female, energetic", gender: "female" },
+  { id: "Laura", label: "Laura", desc: "Female, calm", gender: "female" },
+  { id: "Jordan", label: "Jordan", desc: "Male, friendly", gender: "male" },
+  { id: "Marcus", label: "Marcus", desc: "Male, authoritative", gender: "male" },
+];
+
+export interface VoiceSettings {
+  enabled: boolean;
+  voice: VoiceId;
+  autoPlay: boolean;
+  language: string;
+}
+
+const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
+  enabled: false,
+  voice: "Jessica",
+  autoPlay: false,
+  language: "en",
+};
+
+export function getVoiceSettings(profileId: string): VoiceSettings {
+  if (typeof window === "undefined") return DEFAULT_VOICE_SETTINGS;
+  try {
+    const raw = localStorage.getItem(`coach_voice_${profileId}`);
+    return { ...DEFAULT_VOICE_SETTINGS, ...(raw ? JSON.parse(raw) : {}) };
+  } catch {
+    return DEFAULT_VOICE_SETTINGS;
+  }
+}
+
+export function saveVoiceSettings(profileId: string, settings: VoiceSettings): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(`coach_voice_${profileId}`, JSON.stringify(settings));
+}
+
+// --- TTS usage tracking (global, keyed by year-month) ---
+export function currentTtsMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function getTtsUsage(month: string = currentTtsMonth()): number {
+  return globalGet<number>(`tts_usage_${month}`, 0);
+}
+
+export function addTtsUsage(chars: number, month: string = currentTtsMonth()): number {
+  const next = getTtsUsage(month) + chars;
+  globalSet(`tts_usage_${month}`, next);
+  return next;
+}
+
+// Voxtral TTS pricing: $0.016 per 1,000 characters
+export const TTS_COST_PER_1K_CHARS = 0.016;
+export function ttsCostForChars(chars: number): number {
+  return (chars / 1000) * TTS_COST_PER_1K_CHARS;
+}
 
 export function getAiSettings(): AiSettings {
   return { ...DEFAULT_AI_SETTINGS, ...globalGet<Partial<AiSettings>>("fitlife_ai_settings", {}) };
