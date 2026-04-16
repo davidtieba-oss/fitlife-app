@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "voxtral-tts-2603",
+        model: "voxtral-mini-tts-2603",
         voice,
         input: text,
         language,
