@@ -72,16 +72,46 @@ export async function POST(request: Request) {
       );
     }
 
-    // Convert binary audio to base64.
-    const buf = new Uint8Array(await response.arrayBuffer());
-    let binary = "";
-    for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
-    const audio_data = btoa(binary);
+    // Mistral may return raw binary audio OR a JSON envelope depending on the
+    // deployment. Inspect content-type before deciding how to forward.
+    const contentType = response.headers.get("content-type") ?? "";
 
-    return Response.json({
-      audio_data,
-      mime_type: "audio/mpeg",
-      chars: text.length,
+    if (contentType.includes("application/json")) {
+      const json = await response.json();
+      // Known shapes: { audio: base64 }, { data: [{ b64_json }] }, etc.
+      const b64: string | undefined =
+        json?.audio ??
+        json?.audio_data ??
+        json?.data?.[0]?.b64_json ??
+        json?.data?.[0]?.audio;
+      if (!b64) {
+        return Response.json(
+          {
+            error: `TTS returned unexpected JSON: ${JSON.stringify(json).slice(0, 400)}`,
+          },
+          { status: 502 }
+        );
+      }
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Content-Length": String(bytes.byteLength),
+          "X-Tts-Chars": String(text.length),
+        },
+      });
+    }
+
+    // Binary audio path — pass bytes through directly.
+    const buf = new Uint8Array(await response.arrayBuffer());
+    return new Response(buf, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType || "audio/mpeg",
+        "Content-Length": String(buf.byteLength),
+        "X-Tts-Chars": String(text.length),
+      },
     });
   } catch (err) {
     return Response.json(
