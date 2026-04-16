@@ -1,6 +1,15 @@
 // TTS proxy for Mistral Voxtral.
 // Accepts { text, voice, language } and returns { audio_data: base64Mp3 }.
 
+// Maps the app's friendly voice IDs to Mistral Voxtral preset voices.
+// See https://docs.mistral.ai/models/voxtral-tts-26-03 for the full list.
+const VOICE_MAP: Record<string, string> = {
+  Jessica: "cheerful_female",
+  Laura: "neutral_female",
+  Jordan: "casual_male",
+  Marcus: "neutral_male",
+};
+
 export async function POST(request: Request) {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
@@ -18,7 +27,8 @@ export async function POST(request: Request) {
   }
 
   const text = (body.text ?? "").trim();
-  const voice = body.voice ?? "Jessica";
+  const voiceId = body.voice ?? "Jessica";
+  const voice = VOICE_MAP[voiceId] ?? VOICE_MAP.Jessica;
   const language = body.language ?? "en";
 
   if (!text) {
@@ -39,7 +49,7 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "voxtral-tts",
+        model: "voxtral-tts-2603",
         voice,
         input: text,
         language,
