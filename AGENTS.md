@@ -82,3 +82,83 @@ the existing god-module is tracked as follow-up debt — see
 - Everything else (profiles, nutrition, workouts, plans, etc.) →
   `src/lib/storage.ts` (legacy god-module — do not extend)
 <!-- END:module-ownership -->
+
+<!-- BEGIN:symbol-collisions -->
+# Avoid symbol collisions across feature branches
+
+When adding new exported constants, types, or React state names, prefix
+with the feature domain so parallel branches don't collide on merge:
+
+- Good: `TTS_DEFAULT_SETTINGS`, `VOICE_INPUT_DEFAULT_SETTINGS`,
+  `ttsVoiceSettings`, `voiceInputSettings`.
+- Bad: `DEFAULT_VOICE_SETTINGS`, `voiceSettings`, `defaultSettings`.
+
+Generic names WILL collide the moment a sibling branch lands. The
+3-stage Mistral / TTS / voice-input integration in April 2026 paid a
+multi-hour rebase tax on exactly this — two branches each exported
+`DEFAULT_VOICE_SETTINGS` with incompatible shapes, and both declared
+`const [voiceSettings, setVoiceSettings]` in `coach/page.tsx`.
+<!-- END:symbol-collisions -->
+
+<!-- BEGIN:api-key-posture -->
+# API key posture is fixed: server env vars only
+
+All third-party API keys live in server-side environment variables
+(`MISTRAL_API_KEY`, `ANTHROPIC_API_KEY`). Route handlers read them via
+`process.env`.
+
+Do NOT:
+- add client-side API-key input fields to `/settings`
+- send keys in headers like `x-mistral-key` or `x-api-key`
+- persist keys in `localStorage` (including `fitlife_ai_settings`)
+- add "bring your own key" fallbacks in route handlers
+
+If a new feature needs a key, add it to `.env` / Vercel project env and
+read it server-side. The `/api/ai/status` route reports whether keys
+are configured so the UI can show capability without ever seeing the
+secret.
+<!-- END:api-key-posture -->
+
+<!-- BEGIN:dark-mode-pattern -->
+# Dark-mode card pattern
+
+Every new settings card, panel, or surface must ship paired light/dark
+Tailwind classes. Never ship a dark-only (`bg-slate-800`, `text-white`)
+card — it will look broken in light mode.
+
+Canonical pairings:
+
+- Card background: `bg-gray-100 dark:bg-slate-800`
+- Section heading: `text-gray-600 dark:text-slate-300`
+- Body text: `text-gray-500 dark:text-slate-400`
+- Muted/footnote text: `text-gray-400 dark:text-slate-500`
+- Input / select background: `bg-white dark:bg-slate-700`
+- Input text: `text-gray-900 dark:text-white`
+- Placeholder: `placeholder-gray-400 dark:placeholder-slate-500`
+- Toggle off state: `bg-gray-300 dark:bg-slate-600`
+- Inline info chip: `bg-white/60 dark:bg-slate-700/50`
+- Border: `border-gray-200 dark:border-slate-800`
+
+Copy the pattern from an existing card in `src/app/settings/page.tsx`
+rather than inventing fresh colors.
+<!-- END:dark-mode-pattern -->
+
+<!-- BEGIN:branch-freshness -->
+# Rebase long-lived feature branches onto `main` weekly
+
+Feature branches that touch shared files (`src/app/coach/page.tsx`,
+`src/app/settings/page.tsx`, `src/lib/storage.ts`, `src/lib/ai.ts`)
+must be rebased onto `main` at least weekly, and always immediately
+before opening a PR for review.
+
+The longer a branch sits, the more expensive the integration. The
+April 2026 three-branch integration is the reference case — each
+branch was individually small, but the combined rebase took hours
+because they had drifted on API-key posture, dark-mode styling, and
+input-bar structure. Small, frequent rebases surface these conflicts
+while they're still cheap to fix.
+
+If you can't rebase (e.g. the branch isn't yours), at minimum run
+`git fetch origin main && git log --oneline HEAD..origin/main -- <files>`
+before editing a shared file, to see what's landed upstream.
+<!-- END:branch-freshness -->
