@@ -1,3 +1,6 @@
+// TTS proxy for Mistral Voxtral.
+// Accepts { text, voice, language } and returns { audio_data: base64Mp3 }.
+
 export async function POST(request: Request) {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
@@ -7,15 +10,25 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { text: string; voiceId?: string };
+  let body: { text?: string; voice?: string; language?: string };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!body.text || typeof body.text !== "string") {
+  const text = (body.text ?? "").trim();
+  const voice = body.voice ?? "Jessica";
+  const language = body.language ?? "en";
+
+  if (!text) {
     return Response.json({ error: "Missing required field: text" }, { status: 400 });
+  }
+  if (text.length > 5000) {
+    return Response.json(
+      { error: "Text too long — split into chunks before calling TTS" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -26,9 +39,10 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "voxtral-mini-tts-2603",
-        input: body.text,
-        voice_id: body.voiceId,
+        model: "voxtral-tts",
+        voice,
+        input: text,
+        language,
         response_format: "mp3",
       }),
     });
@@ -45,24 +59,29 @@ export async function POST(request: Request) {
       const errText = await response.text();
       const status = response.status === 401 ? 401 : 502;
       return Response.json(
-        { error: `Mistral TTS error: ${response.status} — ${errText}` },
+        { error: `TTS error: ${response.status} — ${errText}` },
         { status }
       );
     }
 
-    const data = await response.json();
-    const audio: string | undefined = data.audio_data;
-    if (!audio) {
-      return Response.json(
-        { error: "Mistral TTS returned an empty audio payload." },
-        { status: 502 }
-      );
-    }
+    // Convert binary audio to base64.
+    const buf = new Uint8Array(await response.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
+    const audio_data = btoa(binary);
 
-    return Response.json({ audio });
+    return Response.json({
+      audio_data,
+      mime_type: "audio/mpeg",
+      chars: text.length,
+    });
   } catch (err) {
     return Response.json(
-      { error: `Request failed: ${err instanceof Error ? err.message : "Unknown error"}` },
+      {
+        error: `TTS request failed: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
+      },
       { status: 500 }
     );
   }
