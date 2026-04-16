@@ -18,7 +18,6 @@ import {
   saveReminders,
   getVoiceSettings,
   saveVoiceSettings,
-  VOICE_OPTIONS,
   getTtsUsage,
   ttsCostForChars,
   currentTtsMonth,
@@ -126,6 +125,13 @@ export default function SettingsPage() {
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
 
+  // Mistral voice catalog — fetched dynamically from /api/tts/voices.
+  const [mistralVoices, setMistralVoices] = useState<
+    Array<{ id: string; name: string; languages?: string[] }>
+  >([]);
+  const [voicesError, setVoicesError] = useState("");
+  const [voicesLoading, setVoicesLoading] = useState(false);
+
   // Voice input (transcription) settings — profile-scoped.
   const [voiceInputSettings, setVoiceInputSettings] = useState<VoiceInputSettings>(
     DEFAULT_VOICE_INPUT_SETTINGS
@@ -150,6 +156,52 @@ export default function SettingsPage() {
     }
     setTranscriptionUsage(getTranscriptionUsage());
   }, [activeId]);
+
+  // Fetch Mistral voice catalog once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    setVoicesLoading(true);
+    fetch("/api/tts/voices")
+      .then(async (res) => {
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setVoicesError(data.error ?? `Failed to load voices (${res.status})`);
+          setMistralVoices([]);
+          return;
+        }
+        type RawVoice = { id?: string; name?: string; languages?: string[] };
+        const items: RawVoice[] = Array.isArray(data.items) ? data.items : [];
+        const list = items
+          .filter((v): v is { id: string; name: string; languages?: string[] } =>
+            typeof v.id === "string" && typeof v.name === "string"
+          )
+          .map((v) => ({ id: v.id, name: v.name, languages: v.languages }));
+        setMistralVoices(list);
+        setVoicesError("");
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setVoicesError(err instanceof Error ? err.message : "Failed to load voices");
+      })
+      .finally(() => {
+        if (!cancelled) setVoicesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // If the stored voice isn't in the fetched catalog (e.g. migrating from the
+  // old fabricated names), fall back to the first available voice.
+  useEffect(() => {
+    if (mistralVoices.length === 0) return;
+    const stored = voiceSettings.voice;
+    if (stored && mistralVoices.some((v) => v.id === stored)) return;
+    const next = { ...voiceSettings, voice: mistralVoices[0].id };
+    setVoiceSettingsState(next);
+    if (activeId) saveVoiceSettings(activeId, next);
+  }, [mistralVoices, voiceSettings, activeId]);
 
   // Cleanup preview audio on unmount.
   useEffect(() => {
@@ -771,10 +823,26 @@ export default function SettingsPage() {
           <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
             Voice Selection
           </label>
+          {voicesLoading && (
+            <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
+              Loading voices…
+            </p>
+          )}
+          {voicesError && !voicesLoading && (
+            <p className="text-[10px] text-red-500 dark:text-red-400 mt-1">
+              {voicesError}
+            </p>
+          )}
+          {!voicesLoading && !voicesError && mistralVoices.length === 0 && (
+            <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
+              No voices available.
+            </p>
+          )}
           <div className="space-y-1.5 mt-1">
-            {VOICE_OPTIONS.map((v) => {
+            {mistralVoices.map((v) => {
               const selected = voiceSettings.voice === v.id;
               const isPlaying = previewingVoice === v.id;
+              const langs = v.languages?.join(", ") ?? "";
               return (
                 <div
                   key={v.id}
@@ -791,8 +859,10 @@ export default function SettingsPage() {
                     }
                     className="flex-1 text-left min-w-0"
                   >
-                    <p className="text-xs font-medium text-gray-700 dark:text-white">{v.label}</p>
-                    <p className="text-[10px] text-gray-500 dark:text-slate-400">{v.desc}</p>
+                    <p className="text-xs font-medium text-gray-700 dark:text-white truncate">{v.name}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400 truncate">
+                      {v.id}{langs ? ` · ${langs}` : ""}
+                    </p>
                   </button>
                   <button
                     type="button"

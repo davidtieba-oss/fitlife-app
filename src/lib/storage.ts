@@ -617,21 +617,9 @@ export const AI_MODELS_FALLBACK: AiModelInfo[] = [
 const DEFAULT_AI_SETTINGS: AiSettings = { model: "claude-sonnet-4-6" };
 
 // --- Voice / TTS Settings (profile-scoped, keyed as coach_voice_{profileId}) ---
-export type VoiceId = "Jessica" | "Laura" | "Jordan" | "Marcus";
-
-export interface VoiceOption {
-  id: VoiceId;
-  label: string;
-  desc: string;
-  gender: "female" | "male";
-}
-
-export const VOICE_OPTIONS: VoiceOption[] = [
-  { id: "Jessica", label: "Jessica", desc: "Female, energetic", gender: "female" },
-  { id: "Laura", label: "Laura", desc: "Female, calm", gender: "female" },
-  { id: "Jordan", label: "Jordan", desc: "Male, friendly", gender: "male" },
-  { id: "Marcus", label: "Marcus", desc: "Male, authoritative", gender: "male" },
-];
+// `VoiceId` is the Mistral voice id string (e.g. "casual_male"). The actual
+// catalog is fetched at runtime from /api/tts/voices (see settings page).
+export type VoiceId = string;
 
 export interface VoiceSettings {
   enabled: boolean;
@@ -642,7 +630,7 @@ export interface VoiceSettings {
 
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   enabled: false,
-  voice: "Jessica",
+  voice: "",
   autoPlay: false,
   language: "en",
 };
