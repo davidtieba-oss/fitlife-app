@@ -3,7 +3,6 @@
 
 import {
   addTtsUsage,
-  getAiSettings,
   type VoiceId,
 } from "./storage";
 
@@ -167,13 +166,9 @@ export async function requestTtsAudio(
   voice: VoiceId,
   language: string
 ): Promise<{ url: string; chars: number; mime: string }> {
-  const { mistralApiKey } = getAiSettings();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (mistralApiKey) headers["x-mistral-key"] = mistralApiKey;
-
   const res = await fetch("/api/tts", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, voice, language }),
   });
 
