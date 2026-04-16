@@ -17,6 +17,7 @@ import {
 import { ListSkeleton } from "@/components/Skeleton";
 import { askAIChat } from "@/lib/ai";
 import { fetchAiStatus } from "@/lib/ai-providers";
+import { useProfile } from "@/lib/ProfileContext";
 import {
   getSettings,
   getMacroTargets,
@@ -30,13 +31,20 @@ import {
   clearChatHistory,
   getVoiceSettings,
   getActiveProfileId,
+  getVoiceInputSettings,
+  DEFAULT_VOICE_INPUT_SETTINGS,
   type ChatMessage,
   type VoiceSettings,
+  type VoiceInputSettings,
 } from "@/lib/storage";
 import AIBadge from "@/components/AIBadge";
 import { prepareTtsText, chunkTextForTts, requestTtsAudio } from "@/lib/tts";
 import CoachAudioPlayer from "@/components/CoachAudioPlayer";
 import Toast from "@/components/Toast";
+import VoiceInput, {
+  isVoiceInputSupported,
+  type VoiceInputStatus,
+} from "@/components/VoiceInput";
 
 const SUGGESTIONS = [
   "How am I doing this week?",
@@ -48,11 +56,18 @@ const SUGGESTIONS = [
 ];
 
 export default function CoachPage() {
+  const { activeId } = useProfile();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<VoiceInputStatus>("idle");
+  const [voiceInputSettings, setVoiceInputSettings] = useState<VoiceInputSettings>(
+    DEFAULT_VOICE_INPUT_SETTINGS
+  );
+  const [voiceSuccessFlash, setVoiceSuccessFlash] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -94,7 +109,12 @@ export default function CoachPage() {
       .catch(() => setAiConfigured(false));
     const pid = getActiveProfileId();
     setVoiceSettingsState(getVoiceSettings(pid));
+    setVoiceSupported(isVoiceInputSupported());
   }, [loadChat]);
+
+  useEffect(() => {
+    if (activeId) setVoiceInputSettings(getVoiceInputSettings(activeId));
+  }, [activeId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -368,6 +388,31 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
     }
   }
 
+  function handleVoiceTranscript(text: string) {
+    // Keep existing typed text: append the transcript instead of replacing.
+    const prefix = input.trim().length > 0 ? `${input.trimEnd()} ` : "";
+    const next = `${prefix}${text}`;
+    setInput(next);
+    setError("");
+    setVoiceSuccessFlash(true);
+    setTimeout(() => setVoiceSuccessFlash(false), 600);
+    // Auto-send only when user had no pre-existing text
+    if (voiceInputSettings.autoSend && prefix.length === 0) {
+      void handleSend(next);
+    }
+  }
+
+  function handleVoiceError(message: string) {
+    setError(message);
+  }
+
+  const voiceAvailable = voiceSupported && voiceInputSettings.enabled;
+  const isRecording = voiceStatus === "recording";
+  const isTranscribing = voiceStatus === "transcribing";
+  const hasText = input.trim().length > 0;
+  // Send button appears only when the user has text and we're not busy.
+  const showSendButton = hasText && !isRecording && !isTranscribing;
+
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 8rem)" }}>
       {/* Header */}
@@ -538,23 +583,53 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
 
       {/* Input bar */}
       <div className="pt-2 border-t border-gray-200 dark:border-slate-800">
+        {isRecording && (
+          <div className="flex items-center gap-1.5 mb-2 px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[10px] font-medium text-red-300 uppercase tracking-wide">
+              Recording
+            </span>
+          </div>
+        )}
         <div className="flex gap-2 items-end">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask your coach..."
-            rows={1}
-            className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none max-h-24"
-          />
-          <button
-            onClick={() => handleSend()}
-            disabled={!input.trim() || loading}
-            className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white p-2.5 rounded-xl transition shrink-0"
-          >
-            <Send size={16} />
-          </button>
+          {!isRecording && (
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                isTranscribing ? "Transcribing…" : "Ask your coach..."
+              }
+              rows={1}
+              disabled={isTranscribing}
+              className={`flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 resize-none max-h-24 transition ${
+                voiceSuccessFlash
+                  ? "ring-2 ring-green-500/60 focus:ring-green-500"
+                  : "focus:ring-violet-500"
+              }`}
+            />
+          )}
+          {showSendButton && (
+            <button
+              onClick={() => handleSend()}
+              disabled={!input.trim() || loading}
+              className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white p-2.5 rounded-xl transition shrink-0"
+            >
+              <Send size={16} />
+            </button>
+          )}
+          {voiceAvailable && (
+            <VoiceInput
+              language={voiceInputSettings.language}
+              autoStopOnSilence={voiceInputSettings.autoStopOnSilence}
+              disabled={loading}
+              hideIdleButton={hasText}
+              onTranscript={handleVoiceTranscript}
+              onError={handleVoiceError}
+              onStatusChange={setVoiceStatus}
+            />
+          )}
         </div>
       </div>
       {ttsToast && <Toast message={ttsToast} onClose={() => setTtsToast("")} />}

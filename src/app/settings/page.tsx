@@ -22,14 +22,23 @@ import {
   getTtsUsage,
   ttsCostForChars,
   currentTtsMonth,
+  getVoiceInputSettings,
+  saveVoiceInputSettings,
+  getTranscriptionUsage,
+  DEFAULT_VOICE_INPUT_SETTINGS,
+  VOICE_LANGUAGES,
   type UserSettings,
   type WeightGoal,
   type Profile,
   type ReminderSettings,
   type VoiceSettings,
   type VoiceId,
+  type VoiceInputSettings,
+  type VoiceLanguage,
+  type TranscriptionUsage,
 } from "@/lib/storage";
 import { requestTtsAudio } from "@/lib/tts";
+import { isVoiceInputSupported } from "@/components/VoiceInput";
 import { useProfile } from "@/lib/ProfileContext";
 import { useTheme } from "@/lib/ThemeProvider";
 import Toast from "@/components/Toast";
@@ -58,6 +67,7 @@ import {
   Play,
   Square,
   Zap,
+  Mic,
 } from "lucide-react";
 
 const GOAL_OPTIONS: { value: WeightGoal; label: string; desc: string }[] = [
@@ -116,6 +126,14 @@ export default function SettingsPage() {
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
 
+  // Voice input (transcription) settings — profile-scoped.
+  const [voiceInputSettings, setVoiceInputSettings] = useState<VoiceInputSettings>(
+    DEFAULT_VOICE_INPUT_SETTINGS
+  );
+  const [voiceSupported, setVoiceSupported] = useState(true);
+  const [transcriptionUsage, setTranscriptionUsage] =
+    useState<TranscriptionUsage>({ seconds: 0, estimatedCost: 0 });
+
   useEffect(() => {
     setMounted(true);
     setSettings(getSettings());
@@ -126,6 +144,11 @@ export default function SettingsPage() {
     }
     setVoiceSettingsState(getVoiceSettings(activeId));
     setTtsMonthlyChars(getTtsUsage());
+    setVoiceSupported(isVoiceInputSupported());
+    if (activeId) {
+      setVoiceInputSettings(getVoiceInputSettings(activeId));
+    }
+    setTranscriptionUsage(getTranscriptionUsage());
   }, [activeId]);
 
   // Cleanup preview audio on unmount.
@@ -210,6 +233,12 @@ export default function SettingsPage() {
       setVoiceTestStatus("error");
       setVoiceTestError(err instanceof Error ? err.message : "TTS unavailable");
     }
+  }
+
+  function updateVoiceInput(patch: Partial<VoiceInputSettings>) {
+    const next = { ...voiceInputSettings, ...patch };
+    setVoiceInputSettings(next);
+    if (activeId) saveVoiceInputSettings(activeId, next);
   }
 
   if (!mounted) {
@@ -860,6 +889,86 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Voice Input Settings */}
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <Mic size={14} className="text-teal-400" />
+          <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300">Voice Input</h2>
+        </div>
+
+        {!voiceSupported && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+              Voice input is not available in this browser. It requires a modern
+              browser served over HTTPS.
+            </p>
+          </div>
+        )}
+
+        <VoiceToggle
+          label="Enable voice input"
+          description="Dictate messages to your coach"
+          checked={voiceInputSettings.enabled}
+          disabled={!voiceSupported}
+          onChange={(v) => updateVoiceInput({ enabled: v })}
+        />
+
+        <VoiceToggle
+          label="Auto-send after dictation"
+          description="Send the message as soon as transcription finishes"
+          checked={voiceInputSettings.autoSend}
+          disabled={!voiceSupported || !voiceInputSettings.enabled}
+          onChange={(v) => updateVoiceInput({ autoSend: v })}
+        />
+
+        <VoiceToggle
+          label="Auto-stop on silence"
+          description="Stops recording after 2s of silence"
+          checked={voiceInputSettings.autoStopOnSilence}
+          disabled={!voiceSupported || !voiceInputSettings.enabled}
+          onChange={(v) => updateVoiceInput({ autoStopOnSilence: v })}
+        />
+
+        <div>
+          <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+            Input language
+          </label>
+          <select
+            value={voiceInputSettings.language}
+            disabled={!voiceSupported || !voiceInputSettings.enabled}
+            onChange={(e) =>
+              updateVoiceInput({
+                language: e.target.value as VoiceLanguage,
+              })
+            }
+            className="w-full mt-1 bg-white dark:bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
+          >
+            {VOICE_LANGUAGES.map((l) => (
+              <option key={l.value} value={l.value}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="bg-white/60 dark:bg-slate-700/50 rounded-lg px-3 py-2">
+          <p className="text-[11px] text-gray-600 dark:text-slate-300">
+            This month:{" "}
+            <span className="font-medium text-gray-900 dark:text-white">
+              {(transcriptionUsage.seconds / 60).toFixed(1)} minutes
+            </span>{" "}
+            transcribed (~$
+            {transcriptionUsage.estimatedCost.toFixed(3)})
+          </p>
+        </div>
+
+        <p className="text-[10px] text-gray-400 dark:text-slate-500 leading-relaxed">
+          Voice recordings are sent to Mistral AI (European provider) for
+          transcription and are NOT stored. Audio is processed in the EU and
+          discarded immediately.
+        </p>
+      </div>
+
       <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
         <h2 className="text-sm font-semibold text-gray-600 dark:text-slate-300 mb-2">About</h2>
         <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
@@ -906,6 +1015,49 @@ function MacroSlider({
           style={{ width: `${(pct / 70) * 100}%` }}
         />
       </div>
+    </div>
+  );
+}
+
+function VoiceToggle({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div
+      className={`flex items-start justify-between gap-3 ${
+        disabled ? "opacity-50" : ""
+      }`}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-gray-900 dark:text-white">{label}</p>
+        <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={`shrink-0 w-10 h-6 rounded-full transition relative ${
+          checked ? "bg-teal-600" : "bg-gray-300 dark:bg-slate-600"
+        } disabled:cursor-not-allowed`}
+      >
+        <span
+          className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+            checked ? "left-[18px]" : "left-0.5"
+          }`}
+        />
+      </button>
     </div>
   );
 }
