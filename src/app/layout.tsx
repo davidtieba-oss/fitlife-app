@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ClientShell from "@/components/ClientShell";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "FitLife - Health & Fitness Tracker",
@@ -33,6 +34,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-slate-950 text-white antialiased font-sans">
         <ClientShell>{children}</ClientShell>
+        <Analytics />
       </body>
     </html>
   );
