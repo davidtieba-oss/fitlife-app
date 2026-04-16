@@ -1,6 +1,9 @@
 // TTS proxy for Mistral Voxtral.
-// Accepts { text, voice, language } and returns { audio_data: base64Mp3 }.
+// Accepts { text, voice } and returns { audio_data: base64Mp3 }.
 // `voice` is the Mistral voice id (e.g. "casual_male") — see /api/tts/voices.
+// Note: Voxtral's /v1/audio/speech derives the language from the voice's
+// `languages` metadata, so we don't send a `language` field (it's rejected
+// as `extra_forbidden`).
 
 export async function POST(request: Request) {
   const apiKey = process.env.MISTRAL_API_KEY;
@@ -11,7 +14,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { text?: string; voice?: string; language?: string };
+  let body: { text?: string; voice?: string };
   try {
     body = await request.json();
   } catch {
@@ -20,7 +23,6 @@ export async function POST(request: Request) {
 
   const text = (body.text ?? "").trim();
   const voice = body.voice ?? "";
-  const language = body.language ?? "en";
 
   if (!text) {
     return Response.json({ error: "Missing required field: text" }, { status: 400 });
@@ -49,7 +51,6 @@ export async function POST(request: Request) {
         model: "voxtral-mini-tts-2603",
         voice,
         input: text,
-        language,
         response_format: "mp3",
       }),
     });
