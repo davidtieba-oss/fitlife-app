@@ -867,6 +867,114 @@ export function deleteMealPlan(id: string): void {
   setItem("meal_plans", plans);
 }
 
+// --- Voice Input Settings (profile-scoped) ---
+export type VoiceLanguage =
+  | "auto"
+  | "en"
+  | "pt"
+  | "es"
+  | "fr"
+  | "it"
+  | "de";
+
+export interface VoiceInputSettings {
+  enabled: boolean;
+  autoSend: boolean;
+  language: VoiceLanguage;
+  autoStopOnSilence: boolean;
+}
+
+export const DEFAULT_VOICE_INPUT_SETTINGS: VoiceInputSettings = {
+  enabled: true,
+  autoSend: false,
+  language: "en",
+  autoStopOnSilence: true,
+};
+
+export const VOICE_LANGUAGES: { value: VoiceLanguage; label: string }[] = [
+  { value: "auto", label: "Auto (detect)" },
+  { value: "en", label: "English" },
+  { value: "pt", label: "Portuguese" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+  { value: "it", label: "Italian" },
+  { value: "de", label: "German" },
+];
+
+function voiceSettingsKey(profileId: string): string {
+  return `voice_input_settings_${profileId}`;
+}
+
+export function getVoiceInputSettings(profileId: string): VoiceInputSettings {
+  if (typeof window === "undefined") return { ...DEFAULT_VOICE_INPUT_SETTINGS };
+  try {
+    const raw = localStorage.getItem(voiceSettingsKey(profileId));
+    const parsed = raw ? (JSON.parse(raw) as Partial<VoiceInputSettings>) : {};
+    return { ...DEFAULT_VOICE_INPUT_SETTINGS, ...parsed };
+  } catch {
+    return { ...DEFAULT_VOICE_INPUT_SETTINGS };
+  }
+}
+
+export function saveVoiceInputSettings(
+  profileId: string,
+  settings: VoiceInputSettings
+): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(voiceSettingsKey(profileId), JSON.stringify(settings));
+}
+
+// --- Transcription Usage Tracking (global, monthly) ---
+export interface TranscriptionUsage {
+  seconds: number;
+  estimatedCost: number;
+}
+
+// $0.003 per minute of audio (Voxtral Mini Transcribe)
+export const TRANSCRIPTION_COST_PER_MINUTE = 0.003;
+
+function currentMonthKey(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function transcriptionUsageKey(month: string): string {
+  return `transcription_usage_${month}`;
+}
+
+export function getTranscriptionUsage(
+  month: string = currentMonthKey()
+): TranscriptionUsage {
+  if (typeof window === "undefined") return { seconds: 0, estimatedCost: 0 };
+  try {
+    const raw = localStorage.getItem(transcriptionUsageKey(month));
+    if (!raw) return { seconds: 0, estimatedCost: 0 };
+    const parsed = JSON.parse(raw) as Partial<TranscriptionUsage>;
+    return {
+      seconds: parsed.seconds ?? 0,
+      estimatedCost: parsed.estimatedCost ?? 0,
+    };
+  } catch {
+    return { seconds: 0, estimatedCost: 0 };
+  }
+}
+
+export function addTranscriptionUsage(seconds: number): TranscriptionUsage {
+  const month = currentMonthKey();
+  const current = getTranscriptionUsage(month);
+  const updated: TranscriptionUsage = {
+    seconds: current.seconds + seconds,
+    estimatedCost:
+      current.estimatedCost + (seconds / 60) * TRANSCRIPTION_COST_PER_MINUTE,
+  };
+  if (typeof window !== "undefined") {
+    localStorage.setItem(transcriptionUsageKey(month), JSON.stringify(updated));
+  }
+  return updated;
+}
+
 // --- Data Management ---
 const PROFILE_DATA_KEYS = [
   "metrics", "water", "calories", "meals", "workouts", "templates", "settings", "progress_photos", "coach_chat", "measurements", "training_plans", "meal_plans", "reminders",
