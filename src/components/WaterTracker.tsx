@@ -31,8 +31,8 @@ export default function WaterTracker() {
   const offset = circumference * (1 - pct);
 
   return (
-    <div className="bg-slate-800 rounded-2xl p-4 flex flex-col items-center">
-      <p className="text-xs text-slate-400 mb-2 font-medium">Water Intake</p>
+    <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 flex flex-col items-center">
+      <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 font-medium">Water Intake</p>
       <div className="relative w-24 h-24 mb-2">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 96 96">
           <circle
@@ -40,8 +40,9 @@ export default function WaterTracker() {
             cy="48"
             r="40"
             fill="none"
-            stroke="#334155"
+            stroke="currentColor"
             strokeWidth="6"
+            className="text-gray-200 dark:text-slate-700"
           />
           <circle
             cx="48"
@@ -59,20 +60,20 @@ export default function WaterTracker() {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`text-lg font-bold text-white transition-transform duration-300 ${animating ? "scale-125" : ""}`}>
+          <span className={`text-lg font-bold text-gray-900 dark:text-white transition-transform duration-300 ${animating ? "scale-125" : ""}`}>
             {glasses}
           </span>
-          <span className="text-[10px] text-slate-400">/ {goal}</span>
+          <span className="text-[10px] text-gray-500 dark:text-slate-400">/ {goal}</span>
         </div>
       </div>
       <div className="flex items-center gap-3">
         <button
           onClick={() => update(-1)}
-          className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 hover:bg-slate-600 active:scale-95 transition"
+          className="w-8 h-8 rounded-full bg-gray-200 dark:bg-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-slate-600 active:scale-95 transition"
         >
           <Minus size={16} />
         </button>
-        <span className="text-xs text-slate-400">{glasses * 250}ml</span>
+        <span className="text-xs text-gray-500 dark:text-slate-400">{glasses * 250}ml</span>
         <button
           onClick={() => update(1)}
           className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white hover:bg-cyan-500 active:scale-95 transition"

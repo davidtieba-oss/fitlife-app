@@ -50,7 +50,7 @@ export default function ProgressPage() {
 
   if (!mounted || !settings) {
     return (
-      <div className="h-screen flex items-center justify-center text-slate-500">
+      <div className="h-screen flex items-center justify-center text-gray-400 dark:text-slate-500">
         Loading...
       </div>
     );
@@ -61,7 +61,7 @@ export default function ProgressPage() {
       <h1 className="text-xl font-bold">Progress</h1>
 
       {/* Tab bar */}
-      <div className="flex bg-slate-800 rounded-xl p-1">
+      <div className="flex bg-gray-100 dark:bg-slate-800 rounded-xl p-1">
         {TABS.map((t) => (
           <button
             key={t.value}
@@ -69,7 +69,7 @@ export default function ProgressPage() {
             className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${
               tab === t.value
                 ? "bg-teal-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
+                : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
             }`}
           >
             {t.label}

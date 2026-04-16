@@ -70,8 +70,8 @@ export default function WorkoutsTab({ workouts }: Props) {
       </div>
 
       {/* Workouts per week bar chart */}
-      <div className="bg-slate-800 rounded-2xl p-4">
-        <p className="text-xs text-slate-400 font-medium mb-2">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+        <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2">
           Workouts Per Week (12 weeks)
         </p>
         {weeklyData.some((w) => w.count > 0) ? (
@@ -102,7 +102,7 @@ export default function WorkoutsTab({ workouts }: Props) {
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-32 flex items-center justify-center text-slate-500 text-sm">
+          <div className="h-32 flex items-center justify-center text-gray-400 dark:text-slate-500 text-sm">
             No workout data yet.
           </div>
         )}
@@ -110,8 +110,8 @@ export default function WorkoutsTab({ workouts }: Props) {
 
       {/* Volume chart */}
       {hasVolume && (
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-xs text-slate-400 font-medium mb-2">
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+          <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2">
             Weekly Volume (kg)
           </p>
           <ResponsiveContainer width="100%" height={160}>
@@ -146,20 +146,20 @@ export default function WorkoutsTab({ workouts }: Props) {
 
       {/* Personal Records */}
       {prs.length > 0 && (
-        <div className="bg-slate-800 rounded-2xl p-4">
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
           <div className="flex items-center gap-1.5 mb-3">
             <Medal size={16} className="text-amber-400" />
-            <p className="text-xs text-slate-400 font-medium">Personal Records</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Personal Records</p>
           </div>
           <div className="space-y-1.5">
             {prs.map((pr, i) => (
               <div
                 key={pr.exerciseName}
-                className="flex items-center justify-between py-1.5 border-b border-slate-700/50 last:border-0"
+                className="flex items-center justify-between py-1.5 border-b border-gray-200/50 dark:border-slate-700/50 last:border-0"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500 w-4">{i + 1}</span>
-                  <span className="text-xs font-medium text-white">
+                  <span className="text-[10px] text-gray-400 dark:text-slate-500 w-4">{i + 1}</span>
+                  <span className="text-xs font-medium text-gray-900 dark:text-white">
                     {pr.exerciseName}
                   </span>
                 </div>
@@ -167,7 +167,7 @@ export default function WorkoutsTab({ workouts }: Props) {
                   <span className="text-sm font-bold text-teal-400">
                     {pr.maxWeight} kg
                   </span>
-                  <span className="text-[10px] text-slate-500 ml-1.5">
+                  <span className="text-[10px] text-gray-400 dark:text-slate-500 ml-1.5">
                     {format(parseISO(pr.date), "MMM d")}
                   </span>
                 </div>
@@ -192,10 +192,10 @@ function StatCard({
   small?: boolean;
 }) {
   return (
-    <div className="bg-slate-800 rounded-xl p-3 flex items-start gap-2.5">
-      <div className="p-1.5 bg-slate-700 rounded-lg">{icon}</div>
+    <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-3 flex items-start gap-2.5">
+      <div className="p-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg">{icon}</div>
       <div>
-        <p className="text-[10px] text-slate-400">{label}</p>
+        <p className="text-[10px] text-gray-500 dark:text-slate-400">{label}</p>
         <p className={`font-bold ${small ? "text-xs truncate max-w-[80px]" : "text-sm"}`}>
           {value}
         </p>

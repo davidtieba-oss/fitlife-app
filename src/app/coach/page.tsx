@@ -12,7 +12,9 @@ import {
   Settings,
   Bot,
 } from "lucide-react";
+import { ListSkeleton } from "@/components/Skeleton";
 import { askAIChat } from "@/lib/ai";
+import { fetchAiStatus } from "@/lib/ai-providers";
 import {
   getSettings,
   getMacroTargets,
@@ -21,14 +23,12 @@ import {
   getMeals,
   getDailyMacros,
   getWater,
-  getAiSettings,
   getChatHistory,
   saveChatHistory,
   clearChatHistory,
-  AI_MODELS_FALLBACK,
-  getCachedModels,
   type ChatMessage,
 } from "@/lib/storage";
+import AIBadge from "@/components/AIBadge";
 
 const SUGGESTIONS = [
   "How am I doing this week?",
@@ -48,6 +48,8 @@ export default function CoachPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+
   const loadChat = useCallback(() => {
     setMessages(getChatHistory());
   }, []);
@@ -55,6 +57,9 @@ export default function CoachPage() {
   useEffect(() => {
     setMounted(true);
     loadChat();
+    fetchAiStatus()
+      .then((s) => setAiConfigured(s.anthropic || s.mistral))
+      .catch(() => setAiConfigured(false));
   }, [loadChat]);
 
   useEffect(() => {
@@ -63,30 +68,27 @@ export default function CoachPage() {
 
   if (!mounted) {
     return (
-      <div className="h-screen flex items-center justify-center text-slate-500">
-        Loading...
-      </div>
+      <ListSkeleton />
     );
   }
 
-  const aiSettings = getAiSettings();
-  const hasKey = !!aiSettings.apiKey || !!process.env.NEXT_PUBLIC_HAS_API_KEY;
-  const models = getCachedModels() ?? AI_MODELS_FALLBACK;
-  const modelName = models.find((m) => m.id === aiSettings.model)?.name ?? aiSettings.model;
-
-  // No API key configured
-  if (!hasKey) {
+  // No provider configured on server
+  if (aiConfigured === false) {
     return (
       <div className="space-y-4">
         <h1 className="text-xl font-bold">AI Coach</h1>
-        <div className="bg-slate-800 rounded-2xl p-6 text-center space-y-4">
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-6 text-center space-y-4">
           <div className="w-14 h-14 bg-violet-600/20 rounded-2xl flex items-center justify-center mx-auto">
             <Sparkles size={28} className="text-violet-400" />
           </div>
           <div>
-            <p className="text-sm font-medium text-white">Set up your AI key</p>
-            <p className="text-xs text-slate-400 mt-1">
-              To chat with your fitness coach, add your Anthropic API key in Settings.
+            <p className="text-sm font-medium text-gray-900 dark:text-white">AI not configured</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+              Add{" "}
+              <code className="text-violet-500 dark:text-violet-400 font-mono text-[11px]">ANTHROPIC_API_KEY</code>
+              {" "}or{" "}
+              <code className="text-violet-500 dark:text-violet-400 font-mono text-[11px]">MISTRAL_API_KEY</code>
+              {" "}in your Vercel environment variables to enable the AI coach.
             </p>
           </div>
           <Link
@@ -233,13 +235,13 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
           </div>
           <div>
             <h1 className="text-lg font-bold leading-tight">AI Coach</h1>
-            <p className="text-[10px] text-slate-500">Using {modelName}</p>
+            <AIBadge label="Coach" />
           </div>
         </div>
         {messages.length > 0 && (
           <button
             onClick={handleNewChat}
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800 transition"
+            className="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition"
           >
             <RotateCcw size={12} /> New Chat
           </button>
@@ -254,10 +256,10 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
               <Sparkles size={24} className="text-violet-400" />
             </div>
             <div>
-              <p className="text-sm font-medium text-white">
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
                 Hi! I&apos;m your fitness coach.
               </p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                 Ask me anything about your fitness, nutrition, or training.
               </p>
             </div>
@@ -266,7 +268,7 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
                 <button
                   key={s}
                   onClick={() => handleSend(s)}
-                  className="bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 px-3 py-1.5 rounded-full transition"
+                  className="bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-xs text-gray-600 dark:text-slate-300 px-3 py-1.5 rounded-full transition"
                 >
                   {s}
                 </button>
@@ -286,7 +288,7 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
                 className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
                   msg.role === "user"
                     ? "bg-teal-600 text-white"
-                    : "bg-slate-800 text-slate-200"
+                    : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200"
                 }`}
               >
                 {msg.role === "assistant" ? (
@@ -307,11 +309,11 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-slate-800 rounded-2xl px-4 py-3">
+            <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl px-4 py-3">
               <div className="flex gap-1">
-                <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                <span className="w-2 h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-2 h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-2 h-2 bg-gray-400 dark:bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
               </div>
             </div>
           </div>
@@ -327,7 +329,7 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
       </div>
 
       {/* Input bar */}
-      <div className="pt-2 border-t border-slate-800">
+      <div className="pt-2 border-t border-gray-200 dark:border-slate-800">
         <div className="flex gap-2 items-end">
           <textarea
             ref={inputRef}
@@ -336,7 +338,7 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
             onKeyDown={handleKeyDown}
             placeholder="Ask your coach..."
             rows={1}
-            className="flex-1 bg-slate-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none max-h-24"
+            className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none max-h-24"
           />
           <button
             onClick={() => handleSend()}
@@ -370,7 +372,7 @@ function RenderMarkdown({ text }: { text: string }) {
     // Headers
     if (line.startsWith("### ")) {
       elements.push(
-        <p key={i} className="font-semibold text-white mt-2 mb-1">
+        <p key={i} className="font-semibold text-gray-900 dark:text-white mt-2 mb-1">
           {formatInline(line.slice(4))}
         </p>
       );
@@ -379,7 +381,7 @@ function RenderMarkdown({ text }: { text: string }) {
     }
     if (line.startsWith("## ")) {
       elements.push(
-        <p key={i} className="font-bold text-white mt-2 mb-1">
+        <p key={i} className="font-bold text-gray-900 dark:text-white mt-2 mb-1">
           {formatInline(line.slice(3))}
         </p>
       );
@@ -452,7 +454,7 @@ function formatInline(text: string): ReactNode {
       );
     } else if (match[3]) {
       parts.push(
-        <strong key={match.index} className="font-semibold text-white">
+        <strong key={match.index} className="font-semibold text-gray-900 dark:text-white">
           {match[3]}
         </strong>
       );
@@ -466,7 +468,7 @@ function formatInline(text: string): ReactNode {
       parts.push(
         <code
           key={match.index}
-          className="bg-slate-700 px-1 py-0.5 rounded text-[10px]"
+          className="bg-gray-200 dark:bg-slate-700 px-1 py-0.5 rounded text-[10px]"
         >
           {match[5]}
         </code>

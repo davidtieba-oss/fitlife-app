@@ -129,7 +129,7 @@ export default function BodyTab({ measurements }: { measurements: MeasurementEnt
 
   if (measurements.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-500">
+      <div className="text-center py-12 text-gray-400 dark:text-slate-500">
         <p className="text-sm">No measurements recorded yet.</p>
         <p className="text-xs mt-1">Log your body measurements to see progress here.</p>
       </div>
@@ -145,7 +145,7 @@ export default function BodyTab({ measurements }: { measurements: MeasurementEnt
             key={p.label}
             onClick={() => setPeriod(p.months)}
             className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${
-              period === p.months ? "bg-teal-600 text-white" : "bg-slate-800 text-slate-400"
+              period === p.months ? "bg-teal-600 text-white" : "bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400"
             }`}
           >
             {p.label}
@@ -154,14 +154,14 @@ export default function BodyTab({ measurements }: { measurements: MeasurementEnt
       </div>
 
       {/* Radar chart */}
-      <div className="bg-slate-800 rounded-2xl p-4">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-slate-300">Body Shape</p>
+          <p className="text-xs font-semibold text-gray-600 dark:text-slate-300">Body Shape</p>
           {filtered.length > 1 && (
             <select
               value={compareIdx}
               onChange={(e) => setCompareIdx(parseInt(e.target.value))}
-              className="bg-slate-700 rounded-lg px-2 py-1 text-[10px] text-white outline-none"
+              className="bg-gray-200 dark:bg-slate-700 rounded-lg px-2 py-1 text-[10px] text-gray-900 dark:text-white outline-none"
             >
               <option value={-1}>No comparison</option>
               {filtered.slice(1).map((m, i) => (
@@ -202,14 +202,14 @@ export default function BodyTab({ measurements }: { measurements: MeasurementEnt
         <div className="flex items-center justify-center gap-4 mt-1">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-teal-500" />
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[10px] text-gray-500 dark:text-slate-400">
               Latest ({latest && format(parseISO(latest.date), "MMM d")})
             </span>
           </div>
           {compareIdx >= 0 && filtered[compareIdx] && (
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-violet-500" />
-              <span className="text-[10px] text-slate-400">
+              <span className="text-[10px] text-gray-500 dark:text-slate-400">
                 {format(parseISO(filtered[compareIdx].date), "MMM d")}
               </span>
             </div>
@@ -219,16 +219,16 @@ export default function BodyTab({ measurements }: { measurements: MeasurementEnt
 
       {/* Trend sparklines */}
       {trendData.some((t) => t.data.length >= 2) && (
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-xs font-semibold text-slate-300 mb-3">Trends</p>
+        <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-gray-600 dark:text-slate-300 mb-3">Trends</p>
           <div className="space-y-4">
             {trendData
               .filter((t) => t.data.length >= 2)
               .map((t) => (
                 <div key={t.key}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] text-slate-400">{t.label}</span>
-                    <span className="text-[10px] text-white font-medium">
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400">{t.label}</span>
+                    <span className="text-[10px] text-gray-900 dark:text-white font-medium">
                       {t.data[t.data.length - 1]?.value} cm
                     </span>
                   </div>
@@ -259,7 +259,7 @@ export default function BodyTab({ measurements }: { measurements: MeasurementEnt
 
       {/* Measurement history */}
       <div>
-        <p className="text-xs font-semibold text-slate-300 mb-2">History</p>
+        <p className="text-xs font-semibold text-gray-600 dark:text-slate-300 mb-2">History</p>
         <div className="space-y-2">
           {filtered.map((m) => {
             const isExpanded = expandedId === m.id;
@@ -276,23 +276,23 @@ export default function BodyTab({ measurements }: { measurements: MeasurementEnt
               <button
                 key={m.id}
                 onClick={() => setExpandedId(isExpanded ? null : m.id)}
-                className="w-full text-left bg-slate-800 rounded-xl px-4 py-3 transition hover:bg-slate-700/80"
+                className="w-full text-left bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-3 transition hover:bg-gray-200/80 dark:hover:bg-slate-700/80"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-white">
+                  <p className="text-xs font-medium text-gray-900 dark:text-white">
                     {format(parseISO(m.date), "MMM d, yyyy")}
                   </p>
-                  <p className="text-[10px] text-slate-400">{summary || "View details"}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-slate-400">{summary || "View details"}</p>
                 </div>
                 {isExpanded && (
-                  <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-700">
+                  <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-slate-700">
                     {FIELDS.map((f) => {
                       const v = (m as unknown as Record<string, unknown>)[f.key] as number | undefined;
                       if (!v) return null;
                       return (
                         <div key={f.key} className="text-center">
-                          <p className="text-[10px] text-slate-400">{f.label}</p>
-                          <p className="text-xs text-white font-medium">{v} cm</p>
+                          <p className="text-[10px] text-gray-500 dark:text-slate-400">{f.label}</p>
+                          <p className="text-xs text-gray-900 dark:text-white font-medium">{v} cm</p>
                         </div>
                       );
                     }).filter(Boolean)}

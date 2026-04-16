@@ -1,8 +1,8 @@
 export async function POST(request: Request) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
     return Response.json(
-      { error: "AI is not configured. Set ANTHROPIC_API_KEY in environment variables." },
+      { error: "Mistral is not configured. Set MISTRAL_API_KEY in environment variables." },
       { status: 500 }
     );
   }
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   let body: {
     model: string;
     system?: string;
-    messages: Array<{ role: string; content: unknown }>;
+    messages: Array<{ role: string; content: string }>;
     max_tokens?: number;
   };
   try {
@@ -26,19 +26,22 @@ export async function POST(request: Request) {
     );
   }
 
+  // Mistral uses OpenAI-style messages — prepend `system` as a system message.
+  const openaiMessages = body.system
+    ? [{ role: "system", content: body.system }, ...body.messages]
+    : body.messages;
+
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: body.model,
+        messages: openaiMessages,
         max_tokens: body.max_tokens ?? 1024,
-        system: body.system,
-        messages: body.messages,
       }),
     });
 
@@ -46,13 +49,13 @@ export async function POST(request: Request) {
       const errText = await response.text();
       const status = response.status === 401 ? 401 : 502;
       return Response.json(
-        { error: `API error: ${response.status} — ${errText}` },
+        { error: `Mistral API error: ${response.status} — ${errText}` },
         { status }
       );
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text ?? "";
+    const text: string = data.choices?.[0]?.message?.content ?? "";
     return Response.json({ text });
   } catch (err) {
     return Response.json(

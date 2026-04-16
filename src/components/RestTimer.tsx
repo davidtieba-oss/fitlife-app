@@ -46,12 +46,12 @@ export default function RestTimer() {
   // Countdown overlay
   if (running) {
     return (
-      <div className="fixed inset-0 z-[90] bg-slate-950/90 flex flex-col items-center justify-center">
-        <p className="text-sm text-slate-400 mb-2 font-medium">Rest Timer</p>
-        <div className="text-7xl font-bold text-teal-400 tabular-nums">
+      <div className="fixed inset-0 z-[90] bg-white/90 dark:bg-slate-950/90 flex flex-col items-center justify-center">
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-2 font-medium">Rest Timer</p>
+        <div className="text-7xl font-bold text-teal-500 dark:text-teal-400 tabular-nums">
           {mins}:{secs.toString().padStart(2, "0")}
         </div>
-        <div className="mt-2 w-48 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+        <div className="mt-2 w-48 h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-teal-500 rounded-full transition-all duration-1000 ease-linear"
             style={{ width: "100%" }}
@@ -59,7 +59,7 @@ export default function RestTimer() {
         </div>
         <button
           onClick={stop}
-          className="mt-8 flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition"
+          className="mt-8 flex items-center gap-2 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white px-6 py-2.5 rounded-xl text-sm font-medium transition"
         >
           <X size={16} /> Skip
         </button>
@@ -70,12 +70,12 @@ export default function RestTimer() {
   // Picker
   if (showPicker) {
     return (
-      <div className="bg-slate-800 rounded-xl p-3 space-y-2">
+      <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-3 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+          <span className="text-xs text-gray-500 dark:text-slate-400 font-medium flex items-center gap-1">
             <Timer size={14} /> Rest Timer
           </span>
-          <button onClick={() => setShowPicker(false)} className="text-slate-500 hover:text-slate-300">
+          <button onClick={() => setShowPicker(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300">
             <X size={16} />
           </button>
         </div>
@@ -84,10 +84,10 @@ export default function RestTimer() {
             <button
               key={p}
               onClick={() => start(p)}
-              className="bg-slate-700 hover:bg-teal-600 text-white py-2 rounded-lg text-xs font-medium transition"
+              className="bg-gray-200 dark:bg-slate-700 hover:bg-teal-600 text-gray-900 dark:text-white hover:text-white py-2 rounded-lg text-xs font-medium transition"
             >
               {p >= 60 ? `${p / 60}m` : `${p}s`}
-              {p === 90 && <span className="block text-[9px] text-slate-400">1:30</span>}
+              {p === 90 && <span className="block text-[9px] text-gray-400 dark:text-slate-400">1:30</span>}
             </button>
           ))}
         </div>
@@ -97,7 +97,8 @@ export default function RestTimer() {
             value={customInput}
             onChange={(e) => setCustomInput(e.target.value)}
             placeholder="Custom (sec)"
-            className="flex-1 bg-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-teal-500"
+            inputMode="numeric"
+            className="flex-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
           />
           <button
             onClick={() => {
@@ -117,7 +118,7 @@ export default function RestTimer() {
   return (
     <button
       onClick={() => setShowPicker(true)}
-      className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition"
+      className="flex items-center gap-1.5 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-600 dark:text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium transition"
     >
       <Timer size={14} /> Rest Timer
     </button>

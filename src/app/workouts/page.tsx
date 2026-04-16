@@ -19,6 +19,7 @@ import {
   Star,
   Coffee,
   Calendar,
+  Search,
 } from "lucide-react";
 import {
   getWorkouts,
@@ -42,6 +43,8 @@ import { exercises as exerciseDb, type Exercise } from "@/data/exercises";
 import Toast from "@/components/Toast";
 import ExercisePicker from "@/components/ExercisePicker";
 import RestTimer from "@/components/RestTimer";
+import AIBadge from "@/components/AIBadge";
+import { ListSkeleton } from "@/components/Skeleton";
 
 type View = "new" | "history" | "ai";
 
@@ -63,6 +66,9 @@ export default function WorkoutsPage() {
   // History state
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyDateFrom, setHistoryDateFrom] = useState("");
+  const [historyDateTo, setHistoryDateTo] = useState("");
 
   // AI Plan state
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
@@ -103,11 +109,7 @@ export default function WorkoutsPage() {
   }, [workoutActive]);
 
   if (!mounted) {
-    return (
-      <div className="h-screen flex items-center justify-center text-slate-500">
-        Loading...
-      </div>
-    );
+    return <ListSkeleton />;
   }
 
   const templates = getTemplates();
@@ -326,13 +328,13 @@ Requirements:
       <h1 className="text-xl font-bold">Workouts</h1>
 
       {/* View toggle */}
-      <div className="flex bg-slate-800 rounded-xl p-1">
+      <div className="flex bg-gray-100 dark:bg-slate-800 rounded-xl p-1">
         {(["new", "history", "ai"] as const).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
             className={`flex-1 py-2 rounded-lg text-xs font-medium transition ${
-              view === v ? "bg-teal-600 text-white" : "text-slate-400"
+              view === v ? "bg-teal-600 text-white" : "text-gray-500 dark:text-slate-400"
             }`}
           >
             {v === "new" ? "New Workout" : v === "history" ? "History" : "AI Plan"}
@@ -361,19 +363,19 @@ Requirements:
             value={workoutName}
             onChange={(e) => setWorkoutName(e.target.value)}
             placeholder="Workout name..."
-            className="w-full bg-slate-800 rounded-xl px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+            className="w-full bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500 font-medium"
           />
 
           {/* Templates */}
           {workoutExercises.length === 0 && (
             <div>
-              <p className="text-xs text-slate-400 font-medium mb-2">Start from template</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-2">Start from template</p>
               <div className="grid grid-cols-3 gap-2">
                 {templates.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => startFromTemplate(t.id)}
-                    className="bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2.5 text-xs font-medium text-white transition text-center"
+                    className="bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-xl px-3 py-2.5 text-xs font-medium text-gray-900 dark:text-white transition text-center"
                   >
                     <Play size={14} className="mx-auto mb-1 text-teal-400" />
                     {t.name}
@@ -385,18 +387,18 @@ Requirements:
 
           {/* Exercises */}
           {workoutExercises.map((ex, exIdx) => (
-            <div key={exIdx} className="bg-slate-800 rounded-xl p-3 space-y-2">
+            <div key={exIdx} className="bg-gray-100 dark:bg-slate-800 rounded-xl p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-white">{ex.name}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{ex.name}</p>
                 <button
                   onClick={() => removeExercise(exIdx)}
-                  className="text-slate-500 hover:text-red-400 p-0.5 transition"
+                  className="text-gray-400 dark:text-slate-500 hover:text-red-400 p-0.5 transition"
                 >
                   <X size={16} />
                 </button>
               </div>
               {/* Set headers */}
-              <div className="grid grid-cols-[2rem_1fr_1fr_2rem_2rem] gap-1.5 items-center text-[10px] text-slate-500 font-medium px-1">
+              <div className="grid grid-cols-[2rem_1fr_1fr_2rem_2rem] gap-1.5 items-center text-[10px] text-gray-400 dark:text-slate-500 font-medium px-1">
                 <span>Set</span>
                 <span>Reps</span>
                 <span>kg</span>
@@ -411,41 +413,43 @@ Requirements:
                     set.completed ? "opacity-60" : ""
                   }`}
                 >
-                  <span className="text-xs text-slate-400 text-center font-medium">
+                  <span className="text-xs text-gray-500 dark:text-slate-400 text-center font-medium">
                     {setIdx + 1}
                   </span>
                   <input
                     type="number"
+                    inputMode="numeric"
                     value={set.reps || ""}
                     onChange={(e) =>
                       updateSet(exIdx, setIdx, "reps", parseInt(e.target.value) || 0)
                     }
                     placeholder="0"
-                    className="bg-slate-700 rounded-lg px-2 py-1.5 text-xs text-white text-center outline-none focus:ring-1 focus:ring-teal-500"
+                    className="bg-gray-200 dark:bg-slate-700 rounded-lg px-2 py-1.5 text-xs text-gray-900 dark:text-white text-center outline-none focus:ring-1 focus:ring-teal-500"
                   />
                   <input
                     type="number"
+                    inputMode="numeric"
                     value={set.weight || ""}
                     onChange={(e) =>
                       updateSet(exIdx, setIdx, "weight", parseFloat(e.target.value) || 0)
                     }
                     placeholder="0"
                     step="0.5"
-                    className="bg-slate-700 rounded-lg px-2 py-1.5 text-xs text-white text-center outline-none focus:ring-1 focus:ring-teal-500"
+                    className="bg-gray-200 dark:bg-slate-700 rounded-lg px-2 py-1.5 text-xs text-gray-900 dark:text-white text-center outline-none focus:ring-1 focus:ring-teal-500"
                   />
                   <button
                     onClick={() => updateSet(exIdx, setIdx, "completed", !set.completed)}
                     className={`w-7 h-7 rounded-lg flex items-center justify-center transition ${
                       set.completed
                         ? "bg-teal-600 text-white"
-                        : "bg-slate-700 text-slate-400 hover:text-teal-400"
+                        : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400 hover:text-teal-400"
                     }`}
                   >
                     <Check size={14} />
                   </button>
                   <button
                     onClick={() => deleteSet(exIdx, setIdx)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-700 text-slate-500 hover:text-red-400 transition"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center bg-gray-200 dark:bg-slate-700 text-gray-400 dark:text-slate-500 hover:text-red-400 transition"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -463,7 +467,7 @@ Requirements:
           {/* Add exercise button */}
           <button
             onClick={() => setShowPicker(true)}
-            className="w-full flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-dashed border-slate-600 text-slate-300 py-3 rounded-xl text-sm font-medium transition"
+            className="w-full flex items-center justify-center gap-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 border border-dashed border-gray-300 dark:border-slate-600 text-gray-600 dark:text-slate-300 py-3 rounded-xl text-sm font-medium transition"
           >
             <Plus size={16} /> Add Exercise
           </button>
@@ -482,13 +486,13 @@ Requirements:
                 <button
                   onClick={saveAsTemplate}
                   disabled={!workoutName.trim()}
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 py-2.5 rounded-xl text-xs font-medium transition"
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 disabled:opacity-40 text-gray-600 dark:text-slate-300 py-2.5 rounded-xl text-xs font-medium transition"
                 >
                   <Save size={14} /> Save as Template
                 </button>
                 <button
                   onClick={cancelWorkout}
-                  className="flex-1 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-red-400 py-2.5 rounded-xl text-xs font-medium transition"
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-red-400 py-2.5 rounded-xl text-xs font-medium transition"
                 >
                   <X size={14} /> Cancel
                 </button>
@@ -498,10 +502,44 @@ Requirements:
         </div>
       )}
 
-      {view === "history" && (
+      {view === "history" && (() => {
+        const filteredWorkouts = workouts.filter((w) => {
+          if (historySearch && !w.name.toLowerCase().includes(historySearch.toLowerCase())) return false;
+          if (historyDateFrom && w.date < historyDateFrom) return false;
+          if (historyDateTo && w.date > historyDateTo + "T23:59:59") return false;
+          return true;
+        });
+        return (
         <div className="space-y-2">
-          {workouts.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+          {/* Search & Filter */}
+          <div className="space-y-2">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" />
+              <input
+                type="text"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                placeholder="Search workouts..."
+                className="w-full bg-gray-100 dark:bg-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={historyDateFrom}
+                onChange={(e) => setHistoryDateFrom(e.target.value)}
+                className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <input
+                type="date"
+                value={historyDateTo}
+                onChange={(e) => setHistoryDateTo(e.target.value)}
+                className="flex-1 bg-gray-100 dark:bg-slate-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
+              />
+            </div>
+          </div>
+          {filteredWorkouts.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 dark:text-slate-500">
               <Dumbbell size={40} className="mx-auto mb-3 opacity-50" />
               <p className="text-sm">No workouts logged yet.</p>
               <p className="text-xs mt-1">
@@ -509,12 +547,12 @@ Requirements:
               </p>
             </div>
           ) : (
-            workouts.map((w) => {
+            filteredWorkouts.map((w) => {
               const expanded = expandedId === w.id;
               const volume = getWorkoutVolume(w);
               const exerciseCount = w.exercises.length;
               return (
-                <div key={w.id} className="bg-slate-800 rounded-xl overflow-hidden">
+                <div key={w.id} className="bg-gray-100 dark:bg-slate-800 rounded-xl overflow-hidden">
                   <button
                     onClick={() => setExpandedId(expanded ? null : w.id)}
                     className="w-full px-4 py-3 flex items-start justify-between text-left"
@@ -523,19 +561,19 @@ Requirements:
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold truncate">{w.name}</p>
                         {expanded ? (
-                          <ChevronUp size={16} className="text-slate-400 shrink-0" />
+                          <ChevronUp size={16} className="text-gray-500 dark:text-slate-400 shrink-0" />
                         ) : (
-                          <ChevronDown size={16} className="text-slate-400 shrink-0" />
+                          <ChevronDown size={16} className="text-gray-500 dark:text-slate-400 shrink-0" />
                         )}
                       </div>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                         {format(parseISO(w.date), "MMM d, yyyy")}
                       </p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="flex items-center gap-0.5 text-xs text-slate-500">
+                        <span className="flex items-center gap-0.5 text-xs text-gray-400 dark:text-slate-500">
                           <Clock size={11} /> {w.duration}m
                         </span>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-gray-400 dark:text-slate-500">
                           {exerciseCount} exercise{exerciseCount !== 1 && "s"}
                         </span>
                         {volume > 0 && (
@@ -548,14 +586,14 @@ Requirements:
                   </button>
 
                   {expanded && (
-                    <div className="px-4 pb-3 space-y-2 border-t border-slate-700/50 pt-2">
+                    <div className="px-4 pb-3 space-y-2 border-t border-gray-200 dark:border-slate-700/50 pt-2">
                       {w.exercises.map((ex, i) => (
                         <div key={i}>
-                          <p className="text-xs font-medium text-slate-300">{ex.name}</p>
+                          <p className="text-xs font-medium text-gray-600 dark:text-slate-300">{ex.name}</p>
                           <div className="mt-1 space-y-0.5">
                             {ex.sets.map((set, si) => (
-                              <div key={si} className="flex items-center gap-2 text-[11px] text-slate-400">
-                                <span className="w-4 text-slate-500">{si + 1}</span>
+                              <div key={si} className="flex items-center gap-2 text-[11px] text-gray-500 dark:text-slate-400">
+                                <span className="w-4 text-gray-400 dark:text-slate-500">{si + 1}</span>
                                 <span>{set.reps} reps</span>
                                 <span>× {set.weight} kg</span>
                                 {set.completed && (
@@ -571,7 +609,7 @@ Requirements:
                         className={`flex items-center gap-1 text-xs font-medium mt-2 transition ${
                           confirmDeleteId === w.id
                             ? "text-red-400"
-                            : "text-slate-500 hover:text-red-400"
+                            : "text-gray-400 dark:text-slate-500 hover:text-red-400"
                         }`}
                       >
                         <Trash2 size={12} />
@@ -584,10 +622,14 @@ Requirements:
             })
           )}
         </div>
-      )}
+        );
+      })()}
 
       {view === "ai" && (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <AIBadge label="Workout Plan" />
+          </div>
           {/* Plan viewer */}
           {viewingPlan ? (
             <div className="space-y-3">
@@ -613,14 +655,14 @@ Requirements:
                 )}
               </div>
 
-              <div className="bg-slate-800 rounded-2xl p-4">
+              <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="text-sm font-bold text-white">{viewingPlan.plan_name}</h2>
+                  <h2 className="text-sm font-bold text-gray-900 dark:text-white">{viewingPlan.plan_name}</h2>
                   {viewingPlan.isActive && (
                     <span className="text-[9px] bg-teal-600 text-white px-1.5 py-0.5 rounded-full font-medium">Active</span>
                   )}
                 </div>
-                <p className="text-xs text-slate-400">{viewingPlan.description}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">{viewingPlan.description}</p>
               </div>
 
               {/* Days */}
@@ -632,40 +674,40 @@ Requirements:
                 const isExpanded = expandedDay === dayName;
 
                 return (
-                  <div key={dayName} className="bg-slate-800 rounded-xl overflow-hidden">
+                  <div key={dayName} className="bg-gray-100 dark:bg-slate-800 rounded-xl overflow-hidden">
                     <button
                       onClick={() => setExpandedDay(isExpanded ? null : dayName)}
                       className="w-full px-4 py-3 flex items-center justify-between text-left"
                     >
                       <div className="flex items-center gap-2">
                         {isRest ? (
-                          <Coffee size={14} className="text-slate-500" />
+                          <Coffee size={14} className="text-gray-400 dark:text-slate-500" />
                         ) : (
                           <Dumbbell size={14} className="text-teal-400" />
                         )}
                         <div>
-                          <p className="text-xs font-semibold text-white">{dayName}</p>
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-xs font-semibold text-gray-900 dark:text-white">{dayName}</p>
+                          <p className="text-[10px] text-gray-500 dark:text-slate-400">
                             {isRest ? "Rest Day" : planDay.workout_name}
                           </p>
                         </div>
                       </div>
                       {!isRest && (
-                        isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />
+                        isExpanded ? <ChevronUp size={16} className="text-gray-500 dark:text-slate-400" /> : <ChevronDown size={16} className="text-gray-500 dark:text-slate-400" />
                       )}
                     </button>
 
                     {isExpanded && planDay && (
-                      <div className="px-4 pb-3 space-y-2 border-t border-slate-700/50 pt-2">
+                      <div className="px-4 pb-3 space-y-2 border-t border-gray-200 dark:border-slate-700/50 pt-2">
                         {planDay.exercises.map((ex, i) => (
-                          <div key={i} className="bg-slate-700/30 rounded-lg px-3 py-2">
-                            <p className="text-xs font-medium text-white">{ex.name}</p>
+                          <div key={i} className="bg-gray-100/50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
+                            <p className="text-xs font-medium text-gray-900 dark:text-white">{ex.name}</p>
                             <div className="flex items-center gap-3 mt-0.5">
-                              <span className="text-[10px] text-slate-400">{ex.sets} sets × {ex.reps}</span>
-                              <span className="text-[10px] text-slate-500">Rest: {ex.rest_seconds}s</span>
+                              <span className="text-[10px] text-gray-500 dark:text-slate-400">{ex.sets} sets × {ex.reps}</span>
+                              <span className="text-[10px] text-gray-400 dark:text-slate-500">Rest: {ex.rest_seconds}s</span>
                             </div>
                             {ex.notes && (
-                              <p className="text-[10px] text-slate-500 mt-0.5 italic">{ex.notes}</p>
+                              <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5 italic">{ex.notes}</p>
                             )}
                           </div>
                         ))}
@@ -679,8 +721,8 @@ Requirements:
                     )}
 
                     {isExpanded && isRest && (
-                      <div className="px-4 pb-3 border-t border-slate-700/50 pt-2">
-                        <p className="text-[10px] text-slate-500">
+                      <div className="px-4 pb-3 border-t border-gray-200 dark:border-slate-700/50 pt-2">
+                        <p className="text-[10px] text-gray-400 dark:text-slate-500">
                           Focus on recovery: sleep, hydration, light stretching, or a walk.
                         </p>
                       </div>
@@ -691,9 +733,9 @@ Requirements:
 
               {/* Progression notes */}
               {viewingPlan.progression_notes && (
-                <div className="bg-slate-800 rounded-xl p-3">
-                  <p className="text-[10px] text-slate-400 font-semibold mb-1">Progression</p>
-                  <p className="text-xs text-slate-300">{viewingPlan.progression_notes}</p>
+                <div className="bg-gray-100 dark:bg-slate-800 rounded-xl p-3">
+                  <p className="text-[10px] text-gray-500 dark:text-slate-400 font-semibold mb-1">Progression</p>
+                  <p className="text-xs text-gray-600 dark:text-slate-300">{viewingPlan.progression_notes}</p>
                 </div>
               )}
 
@@ -705,7 +747,7 @@ Requirements:
                   setViewingPlan(null);
                   setToast("Plan deleted");
                 }}
-                className="w-full flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-red-400 py-2 transition"
+                className="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-slate-500 hover:text-red-400 py-2 transition"
               >
                 <Trash2 size={12} /> Delete Plan
               </button>
@@ -715,26 +757,26 @@ Requirements:
               {/* Saved plans list */}
               {plans.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs text-slate-400 font-medium">Your Plans</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Your Plans</p>
                   {plans.map((p) => (
                     <button
                       key={p.id}
                       onClick={() => { setViewingPlan(p); setExpandedDay(null); }}
-                      className="w-full bg-slate-800 rounded-xl px-4 py-3 text-left hover:bg-slate-700/80 transition"
+                      className="w-full bg-gray-100 dark:bg-slate-800 rounded-xl px-4 py-3 text-left hover:bg-gray-200/50 dark:hover:bg-slate-700/80 transition"
                     >
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-teal-400 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-xs font-semibold text-white truncate">{p.plan_name}</p>
+                            <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{p.plan_name}</p>
                             {p.isActive && (
                               <span className="text-[8px] bg-teal-600 text-white px-1.5 py-0.5 rounded-full font-medium shrink-0">Active</span>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-400 truncate">{p.description}</p>
-                          <p className="text-[10px] text-slate-500">{p.days.length} days/week</p>
+                          <p className="text-[10px] text-gray-500 dark:text-slate-400 truncate">{p.description}</p>
+                          <p className="text-[10px] text-gray-400 dark:text-slate-500">{p.days.length} days/week</p>
                         </div>
-                        <ChevronDown size={14} className="text-slate-500 -rotate-90 shrink-0" />
+                        <ChevronDown size={14} className="text-gray-400 dark:text-slate-500 -rotate-90 shrink-0" />
                       </div>
                     </button>
                   ))}
@@ -742,21 +784,21 @@ Requirements:
               )}
 
               {/* Generator form */}
-              <div className="bg-slate-800 rounded-2xl p-4 space-y-3">
+              <div className="bg-gray-100 dark:bg-slate-800 rounded-2xl p-4 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Sparkles size={14} className="text-violet-400" />
-                  <p className="text-xs font-semibold text-white">Generate AI Plan</p>
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white">Generate AI Plan</p>
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-medium">Goal</label>
+                  <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Goal</label>
                   <div className="grid grid-cols-2 gap-1.5 mt-1">
                     {["Build Muscle", "Lose Fat", "General Fitness", "Strength"].map((g) => (
                       <button
                         key={g}
                         onClick={() => setAiGoal(g)}
                         className={`py-2 rounded-lg text-xs font-medium transition ${
-                          aiGoal === g ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                          aiGoal === g ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                         }`}
                       >
                         {g}
@@ -766,14 +808,14 @@ Requirements:
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-medium">Experience Level</label>
+                  <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Experience Level</label>
                   <div className="grid grid-cols-3 gap-1.5 mt-1">
                     {["Beginner", "Intermediate", "Advanced"].map((l) => (
                       <button
                         key={l}
                         onClick={() => setAiLevel(l)}
                         className={`py-2 rounded-lg text-xs font-medium transition ${
-                          aiLevel === l ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                          aiLevel === l ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                         }`}
                       >
                         {l}
@@ -783,14 +825,14 @@ Requirements:
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-medium">Days Per Week</label>
+                  <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Days Per Week</label>
                   <div className="grid grid-cols-5 gap-1.5 mt-1">
                     {["2", "3", "4", "5", "6"].map((d) => (
                       <button
                         key={d}
                         onClick={() => setAiDays(d)}
                         className={`py-2 rounded-lg text-xs font-medium transition ${
-                          aiDays === d ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                          aiDays === d ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                         }`}
                       >
                         {d}
@@ -800,14 +842,14 @@ Requirements:
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-medium">Equipment</label>
+                  <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Equipment</label>
                   <div className="grid grid-cols-3 gap-1.5 mt-1">
                     {["Full Gym", "Home Gym", "Bodyweight"].map((eq) => (
                       <button
                         key={eq}
                         onClick={() => setAiEquipment(eq)}
                         className={`py-2 rounded-lg text-[10px] font-medium transition ${
-                          aiEquipment === eq ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                          aiEquipment === eq ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                         }`}
                       >
                         {eq}
@@ -817,14 +859,14 @@ Requirements:
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-medium">Session Duration</label>
+                  <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Session Duration</label>
                   <div className="grid grid-cols-4 gap-1.5 mt-1">
                     {["30 min", "45 min", "60 min", "90 min"].map((t) => (
                       <button
                         key={t}
                         onClick={() => setAiDuration(t)}
                         className={`py-2 rounded-lg text-xs font-medium transition ${
-                          aiDuration === t ? "bg-teal-600 text-white" : "bg-slate-700 text-slate-400"
+                          aiDuration === t ? "bg-teal-600 text-white" : "bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                         }`}
                       >
                         {t}
@@ -834,13 +876,13 @@ Requirements:
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-medium">Injuries / Limitations (optional)</label>
+                  <label className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">Injuries / Limitations (optional)</label>
                   <textarea
                     value={aiInjuries}
                     onChange={(e) => setAiInjuries(e.target.value)}
                     placeholder="e.g., lower back pain, shoulder impingement..."
                     rows={2}
-                    className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                    className="w-full mt-1 bg-gray-200 dark:bg-slate-700 rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none"
                   />
                 </div>
 
@@ -864,7 +906,7 @@ Requirements:
                   )}
                 </button>
 
-                <p className="text-[10px] text-slate-500 text-center">
+                <p className="text-[10px] text-gray-400 dark:text-slate-500 text-center">
                   AI plans are suggestions — adjust based on how you feel
                 </p>
               </div>
