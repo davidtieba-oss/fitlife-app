@@ -21,6 +21,7 @@ import {
 } from "@/lib/storage";
 import WaterTracker from "@/components/WaterTracker";
 import WeightChart from "@/components/WeightChart";
+import { Card } from "@/components/ui";
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -37,7 +38,7 @@ export default function Dashboard() {
 
   if (!mounted) {
     return (
-      <div className="h-screen flex items-center justify-center text-slate-500">
+      <div className="h-screen flex items-center justify-center text-muted">
         Loading...
       </div>
     );
@@ -68,18 +69,14 @@ export default function Dashboard() {
     ? Math.min(dailyMacros.calories / settings.calorieTarget, 1)
     : 0;
   const calBarColor =
-    dailyMacros.calories > settings.calorieTarget
-      ? "bg-red-500"
-      : dailyMacros.calories > settings.calorieTarget * 0.85
-      ? "bg-yellow-500"
-      : "bg-teal-500";
+    dailyMacros.calories > settings.calorieTarget ? "bg-danger" : "bg-primary";
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold">{getGreeting()}!</h1>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted">
           {format(new Date(), "EEEE, MMMM d")}
         </p>
       </div>
@@ -87,16 +84,15 @@ export default function Dashboard() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3">
         {/* Weight */}
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <p className="text-xs text-slate-400 font-medium mb-1">Weight</p>
+        <Card title="Weight">
           {lastWeight ? (
             <div className="flex items-end gap-1.5">
               <span className="text-2xl font-bold">{lastWeight.weight}</span>
-              <span className="text-xs text-slate-400 mb-1">kg</span>
+              <span className="text-xs text-muted mb-1">kg</span>
               {weightDiff !== 0 && (
                 <span
                   className={`flex items-center text-xs ml-auto mb-1 ${
-                    weightDiff > 0 ? "text-red-400" : "text-green-400"
+                    weightDiff > 0 ? "text-danger" : "text-success"
                   }`}
                 >
                   {weightDiff > 0 ? (
@@ -111,21 +107,21 @@ export default function Dashboard() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">Not logged yet</p>
+            <p className="text-sm text-muted">Not logged yet</p>
           )}
-        </div>
+        </Card>
 
         {/* Water */}
         <WaterTracker />
 
         {/* Nutrition */}
-        <div className="bg-slate-800 rounded-2xl p-4 col-span-2">
+        <Card className="col-span-2">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-slate-400 font-medium">Nutrition Today</p>
+            <p className="text-xs text-muted font-medium">Nutrition Today</p>
             {dailyMacros.calories === 0 && (
               <Link
                 href="/log"
-                className="text-[10px] text-teal-400 hover:text-teal-300 font-medium"
+                className="text-[10px] text-primary hover:text-primary-muted font-medium"
               >
                 + Log meal
               </Link>
@@ -133,7 +129,7 @@ export default function Dashboard() {
           </div>
           {dailyMacros.calories === 0 ? (
             <Link href="/log" className="block">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted">
                 No meals logged yet — tap to add
               </p>
             </Link>
@@ -143,11 +139,11 @@ export default function Dashboard() {
                 <span className="text-2xl font-bold">
                   {dailyMacros.calories}
                 </span>
-                <span className="text-xs text-slate-400 mb-1">
+                <span className="text-xs text-muted mb-1">
                   / {settings.calorieTarget} cal
                 </span>
               </div>
-              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden mb-3">
+              <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden mb-3">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${calBarColor}`}
                   style={{ width: `${calPct * 100}%` }}
@@ -175,33 +171,36 @@ export default function Dashboard() {
               </div>
             </>
           )}
-        </div>
+        </Card>
 
         {/* Today's Planned Workout */}
         {plannedWorkout && (
-          <Link href="/workouts" className="bg-gradient-to-r from-violet-600/20 to-teal-600/20 border border-violet-500/20 rounded-2xl p-4 col-span-2 block hover:from-violet-600/30 hover:to-teal-600/30 transition">
+          <Link
+            href="/workouts"
+            className="bg-gradient-to-r from-accent/20 to-primary/20 border border-accent/20 rounded-2xl p-4 col-span-2 block hover:from-accent/30 hover:to-primary/30 transition"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-violet-400 font-medium mb-1">
+                <p className="text-xs text-accent font-medium mb-1">
                   Today&apos;s Planned Workout
                 </p>
                 <p className="text-sm font-semibold">{plannedWorkout.workout_name}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <p className="text-[10px] text-muted mt-0.5">
                   {plannedWorkout.exercises.length} exercises · Tap to start
                 </p>
               </div>
-              <div className="bg-violet-600/30 rounded-lg p-2">
-                <Dumbbell size={18} className="text-violet-400" />
+              <div className="bg-accent/30 rounded-lg p-2">
+                <Dumbbell size={18} className="text-accent" />
               </div>
             </div>
           </Link>
         )}
 
         {/* Last Workout */}
-        <div className="bg-slate-800 rounded-2xl p-4 col-span-2">
+        <Card className="col-span-2">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 font-medium mb-1">
+              <p className="text-xs text-muted font-medium mb-1">
                 Last Workout
               </p>
               {lastWorkout ? (
@@ -209,7 +208,7 @@ export default function Dashboard() {
                   <p className="text-sm font-semibold truncate">
                     {lastWorkout.name}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-muted">
                     {lastWorkoutDays === 0
                       ? "Today"
                       : lastWorkoutDays === 1
@@ -221,39 +220,39 @@ export default function Dashboard() {
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-slate-500">No workouts yet</p>
+                <p className="text-sm text-muted">No workouts yet</p>
               )}
             </div>
-            <div className="flex items-center gap-2 bg-teal-600/20 rounded-lg px-3 py-2">
-              <Flame size={16} className="text-teal-400" />
+            <div className="flex items-center gap-2 bg-primary/20 rounded-lg px-3 py-2">
+              <Flame size={16} className="text-primary" />
               <div className="text-right">
-                <p className="text-sm font-bold text-teal-300">
+                <p className="text-sm font-bold text-primary">
                   {workoutsThisWeek}
                 </p>
-                <p className="text-[9px] text-slate-400">this week</p>
+                <p className="text-[9px] text-muted">this week</p>
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Quick Actions */}
       <div className="flex gap-2">
         <Link
           href="/log"
-          className="flex-1 flex items-center justify-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white py-2.5 rounded-xl text-sm font-medium transition active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-1.5 bg-primary hover:bg-primary-muted text-white py-2.5 rounded-xl text-sm font-medium transition active:scale-[0.98]"
         >
           <Scale size={16} /> Log Weight
         </Link>
         <Link
           href="/log"
-          className="flex-1 flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-sm font-medium transition active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-1.5 bg-surface-muted hover:bg-surface text-white py-2.5 rounded-xl text-sm font-medium transition active:scale-[0.98]"
         >
           <Utensils size={16} /> Log Meal
         </Link>
         <Link
           href="/workouts"
-          className="flex-1 flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl text-sm font-medium transition active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-1.5 bg-surface-muted hover:bg-surface text-white py-2.5 rounded-xl text-sm font-medium transition active:scale-[0.98]"
         >
           <Dumbbell size={16} /> Workout
         </Link>
@@ -312,8 +311,8 @@ function MacroRing({
           <span className="text-[10px] font-bold text-white">{pctLabel}%</span>
         </div>
       </div>
-      <span className="text-[10px] text-slate-300 font-medium">{label}</span>
-      <span className="text-[9px] text-slate-500">
+      <span className="text-[10px] text-foreground font-medium">{label}</span>
+      <span className="text-[9px] text-muted">
         {value}g / {target}g
       </span>
     </div>
