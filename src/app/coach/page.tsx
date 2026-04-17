@@ -39,6 +39,21 @@ const SUGGESTIONS = [
   "What should I improve?",
 ];
 
+type SlashCommand = {
+  command: string;
+  href: string;
+  description: string;
+};
+
+const SLASH_COMMANDS: SlashCommand[] = [
+  { command: "/log meal", href: "/log", description: "Log a meal" },
+  { command: "/log weight", href: "/log", description: "Log your weight" },
+  { command: "/workout start", href: "/workouts", description: "Start a workout" },
+  { command: "/plan week", href: "/plan", description: "Plan your week" },
+  { command: "/grocery", href: "/grocery", description: "Open grocery list" },
+  { command: "/progress", href: "/progress", description: "View progress" },
+];
+
 export default function CoachPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -327,14 +342,15 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
       </div>
 
       {/* Input bar */}
-      <div className="pt-2 border-t border-slate-800">
+      <div className="pt-2 border-t border-slate-800 relative">
+        <SlashMenu query={input} onClose={() => setInput("")} />
         <div className="flex gap-2 items-end">
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask your coach..."
+            placeholder="Ask your coach... (type / for quick actions)"
             rows={1}
             className="flex-1 bg-slate-800 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-violet-500 resize-none max-h-24"
           />
@@ -347,6 +363,37 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SlashMenu({ query, onClose }: { query: string; onClose: () => void }) {
+  if (!query.startsWith("/")) return null;
+
+  const q = query.toLowerCase();
+  const matches = SLASH_COMMANDS.filter((c) => c.command.toLowerCase().startsWith(q));
+
+  if (matches.length === 0) return null;
+
+  return (
+    <div className="absolute bottom-full left-0 right-0 mb-2 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-40">
+      <div className="px-3 py-1.5 text-[10px] text-slate-500 font-medium uppercase tracking-wide border-b border-slate-700/50">
+        Quick actions
+      </div>
+      <ul>
+        {matches.map((c) => (
+          <li key={c.command}>
+            <Link
+              href={c.href}
+              onClick={onClose}
+              className="flex items-center justify-between px-3 py-2.5 hover:bg-slate-700 transition"
+            >
+              <span className="text-xs font-mono text-violet-300">{c.command}</span>
+              <span className="text-[10px] text-slate-400">{c.description}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
