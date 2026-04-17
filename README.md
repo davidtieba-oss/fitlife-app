@@ -20,6 +20,22 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment variables
+
+The `/api/ai` route proxies requests to Anthropic and is protected by an
+origin check, a per-IP rate limit, and payload/schema validation.
+
+- `ANTHROPIC_API_KEY` (required for `/api/ai`) — server-side Anthropic API
+  key. The route returns 500 if unset. Never expose this to the client.
+- `MISTRAL_API_KEY` (required for `/api/mistral`) — server-side Mistral API
+  key, used by the Mistral provider and the Voxtral TTS/transcription
+  routes.
+- `ALLOWED_ORIGINS` (optional) — comma-separated list of external origins
+  allowed to call `/api/ai` (e.g. `https://app.example.com,https://staging.example.com`).
+  Same-origin requests (identified via the `Sec-Fetch-Site: same-origin`
+  header) are always allowed regardless of this setting. When deployed on
+  Vercel, `https://$VERCEL_URL` is added to the allowlist automatically.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
