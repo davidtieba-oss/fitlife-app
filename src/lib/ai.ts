@@ -1,4 +1,5 @@
 import { getAiSettings } from "./storage";
+import { isValidModelId, MAX_TOKENS_CAP } from "./ai-validation";
 
 interface AskAIOptions {
   system?: string;
@@ -55,6 +56,10 @@ async function callAI(params: {
   messages: Array<{ role: string; content: unknown }>;
   maxTokens?: number;
 }): Promise<string> {
+  if (!isValidModelId(params.model)) {
+    throw new Error(`Invalid model: ${params.model}`);
+  }
+
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (params.apiKey) {
     headers["x-api-key"] = params.apiKey;
@@ -67,7 +72,7 @@ async function callAI(params: {
       model: params.model,
       system: params.system,
       messages: params.messages,
-      max_tokens: params.maxTokens ?? 1024,
+      max_tokens: Math.min(params.maxTokens ?? 1024, MAX_TOKENS_CAP),
     }),
   });
 
