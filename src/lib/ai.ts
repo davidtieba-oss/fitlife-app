@@ -1,4 +1,5 @@
 import { getAiSettings, defaultModelFor, type AIProvider } from "./ai-providers";
+import { isValidModelId, MAX_TOKENS_CAP } from "./ai-validation";
 
 interface AskAIOptions {
   system?: string;
@@ -117,11 +118,14 @@ interface CallParams {
 }
 
 async function callAnthropic(params: CallParams): Promise<string> {
+  if (!isValidModelId(params.model)) {
+    throw new Error(`Invalid model: ${params.model}`);
+  }
   return post("/api/ai", {
     model: params.model,
     system: params.system,
     messages: params.messages,
-    max_tokens: params.maxTokens ?? 1024,
+    max_tokens: Math.min(params.maxTokens ?? 1024, MAX_TOKENS_CAP),
   });
 }
 
