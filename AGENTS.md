@@ -97,6 +97,47 @@ The proxy must also keep handling both binary audio and
 observed switching between the two formats.
 <!-- END:tts-posture -->
 
+<!-- BEGIN:feature-map -->
+# Feature map — do not silently drop these
+
+Every entry below is a shipped, user-facing feature with its entry
+point. Before a refactor that touches any of the listed files, confirm
+the feature still loads and still works. If you intentionally remove
+one, say so in the PR body; do NOT delete a feature as a side effect
+of restructuring.
+
+- **Multi-profile system** (create / switch / delete per-user data)
+  → `src/lib/storage.ts` (`Profile`, `getProfiles`, `setActiveProfileId`),
+  `src/lib/ProfileContext.tsx`, `src/components/Onboarding.tsx`,
+  `src/app/settings/page.tsx`.
+- **AI Coach chat** (multi-provider, Anthropic + Mistral)
+  → `src/app/coach/page.tsx`, `src/lib/ai.ts`, `src/app/api/ai/route.ts`,
+  `src/app/api/mistral/route.ts`.
+- **AI provider settings** (provider tabs, model list, connection test)
+  → `src/components/AISettings.tsx`, `src/lib/ai-providers.ts`,
+  `src/app/api/ai/status/route.ts`, `src/app/api/mistral/status/route.ts`.
+- **Voxtral TTS (voice output)** — see `tts-posture` above
+  → `src/app/api/tts/route.ts`, `src/app/api/tts/voices/route.ts`,
+  `src/lib/tts.ts`, `src/components/CoachAudioPlayer.tsx`,
+  `/settings` → Voice Output section.
+- **Voxtral voice input (transcription)**
+  → `src/app/api/transcribe/route.ts`, `src/components/VoiceInput.tsx`,
+  `/settings` → Voice Input section.
+- **Food log + nutrition** (meal entries, macros, water, calories)
+  → `src/app/log/page.tsx`, macro/water helpers in `src/lib/storage.ts`.
+- **Workouts** (templates, sets, rest timer, exercise picker)
+  → `src/app/workouts/page.tsx`, `src/components/RestTimer.tsx`,
+  `src/components/ExercisePicker.tsx`.
+- **Training + meal plans** (AI-generated weekly plans, grocery integration)
+  → `src/app/plan/page.tsx`, `src/app/grocery/page.tsx`.
+- **Progress** (weight, body, nutrition, photos, workouts tabs)
+  → `src/app/progress/page.tsx`, `src/components/progress/*`.
+- **Theme** (system / dark / light)
+  → `src/lib/ThemeProvider.tsx`, toggled in `/settings`.
+- **Reminders** (weigh-in, meals, workout, water)
+  → `ReminderSettings` in `src/lib/storage.ts`, `/settings` → Reminders.
+<!-- END:feature-map -->
+
 <!-- BEGIN:module-ownership -->
 # Module ownership cheat sheet
 
