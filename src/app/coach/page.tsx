@@ -45,6 +45,9 @@ import VoiceInput, {
   isVoiceInputSupported,
   type VoiceInputStatus,
 } from "@/components/VoiceInput";
+import SlashCommandPalette, {
+  isSlashQuery,
+} from "@/components/SlashCommandPalette";
 
 const SUGGESTIONS = [
   "How am I doing this week?",
@@ -583,6 +586,9 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
 
       {/* Input bar */}
       <div className="pt-2 border-t border-gray-200 dark:border-slate-800">
+        {isSlashQuery(input) && (
+          <SlashCommandPalette query={input} onSelect={() => setInput("")} />
+        )}
         {isRecording && (
           <div className="flex items-center gap-1.5 mb-2 px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-lg">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
