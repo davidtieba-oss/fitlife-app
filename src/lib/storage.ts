@@ -598,14 +598,14 @@ interface CachedModels {
 const MODEL_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export function getCachedModels(): AiModelInfo[] | null {
-  const cached = globalGet<CachedModels | null>("fitlife_models_cache", null);
+  const cached = globalGet<CachedModels | null>("fitlife_models_cache_v2", null);
   if (!cached) return null;
   if (Date.now() - cached.fetchedAt > MODEL_CACHE_TTL) return null;
   return cached.models;
 }
 
 export function saveCachedModels(models: AiModelInfo[]): void {
-  globalSet<CachedModels>("fitlife_models_cache", { models, fetchedAt: Date.now() });
+  globalSet<CachedModels>("fitlife_models_cache_v2", { models, fetchedAt: Date.now() });
 }
 
 // --- Coach Chat History (profile-scoped) ---

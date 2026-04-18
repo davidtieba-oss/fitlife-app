@@ -53,6 +53,9 @@ export type MistralVoice = {
 };
 
 export type VoicesResponse = {
+  // Mistral's /v1/audio/voices returns `{ items: [...] }`. Keep `data` and
+  // `voices` as fallbacks in case the deployment format shifts.
+  items?: MistralVoice[];
   data?: MistralVoice[];
   voices?: MistralVoice[];
   [key: string]: unknown;
@@ -69,5 +72,5 @@ export async function fetchVoiceCatalog(): Promise<MistralVoice[]> {
     throw new Error(msg);
   }
   const json = (await res.json()) as VoicesResponse;
-  return json.data ?? json.voices ?? [];
+  return json.items ?? json.data ?? json.voices ?? [];
 }

@@ -89,26 +89,42 @@ export default function SettingsPage() {
       const res = await fetch("/api/models");
       if (!res.ok) throw new Error("Failed to fetch models");
       const data = await res.json();
-      const allModels: Array<{ id: string; display_name?: string; capabilities?: { image_input?: boolean } }> =
-        data.data ?? data;
-      // Filter to image-capable models, map to our format
-      const imageCapable = allModels.filter(
-        (m) => m.capabilities?.image_input !== false
-      );
-      // Determine sort order: haiku < sonnet < opus, then by id
-      function sortKey(id: string): number {
-        if (id.includes("haiku")) return 0;
-        if (id.includes("sonnet")) return 1;
-        if (id.includes("opus")) return 2;
-        return 3;
+      const allModels: Array<{
+        id: string;
+        display_name?: string;
+        created_at?: string;
+        capabilities?: { image_input?: boolean };
+      }> = data.data ?? data;
+
+      // Pick the latest Haiku and latest Sonnet only (image-capable, skip
+      // explicitly-dated snapshots when an undated alias exists for the same
+      // family).
+      function pickLatest(family: "haiku" | "sonnet") {
+        const candidates = allModels.filter(
+          (m) =>
+            m.id.includes(family) &&
+            m.capabilities?.image_input !== false,
+        );
+        if (candidates.length === 0) return null;
+        candidates.sort((a, b) => {
+          const byCreated = (b.created_at ?? "").localeCompare(a.created_at ?? "");
+          if (byCreated !== 0) return byCreated;
+          return b.id.localeCompare(a.id);
+        });
+        return candidates[0];
       }
-      imageCapable.sort((a, b) => sortKey(a.id) - sortKey(b.id) || a.id.localeCompare(b.id));
-      const mapped: AiModelInfo[] = imageCapable.map((m) => {
+
+      const latestHaiku = pickLatest("haiku");
+      const latestSonnet = pickLatest("sonnet");
+      const picks = [latestHaiku, latestSonnet].filter(
+        (m): m is NonNullable<typeof m> => m !== null,
+      );
+
+      const mapped: AiModelInfo[] = picks.map((m) => {
         const name = m.display_name || m.id;
         let costNote = "";
         if (m.id.includes("haiku")) costNote = "~$0.001/req";
         else if (m.id.includes("sonnet")) costNote = "~$0.01/req";
-        else if (m.id.includes("opus")) costNote = "~$0.05/req";
         return { id: m.id, name, desc: m.id, costNote };
       });
       if (mapped.length > 0) {
