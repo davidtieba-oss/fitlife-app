@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { text?: string; voice?: string; language?: string };
+  let body: { text?: string; voice?: string };
   try {
     body = await request.json();
   } catch {
@@ -19,7 +19,6 @@ export async function POST(request: Request) {
 
   const text = (body.text ?? "").trim();
   const voice = body.voice ?? "Jessica";
-  const language = body.language ?? "en";
 
   if (!text) {
     return Response.json({ error: "Missing required field: text" }, { status: 400 });
@@ -39,10 +38,11 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "voxtral-tts",
+        // Do NOT send `language` — Voxtral derives language from the voice
+        // metadata and rejects `language` as `extra_forbidden`.
+        model: "voxtral-mini-tts-2603",
         voice,
         input: text,
-        language,
         response_format: "mp3",
       }),
     });

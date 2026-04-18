@@ -73,6 +73,23 @@ the existing god-module is tracked as follow-up debt — see
 `docs/postmortems/2026-04-mistral-provider-push.md`.
 <!-- END:storage-module-policy -->
 
+<!-- BEGIN:tts-posture -->
+# Voxtral TTS posture — do not regress
+
+`src/app/api/tts/route.ts` calls Mistral's `/v1/audio/speech`. Two
+things are easy to get wrong and have broken TTS before:
+
+- Model id: **`voxtral-mini-tts-2603`**. `voxtral-tts` is not a valid
+  id and Mistral responds with `invalid_model` (HTTP 400).
+- Do NOT send a `language` field in the request body. Voxtral derives
+  language from the voice metadata and rejects `language` as
+  `extra_forbidden`.
+
+The proxy must also keep handling both binary audio and
+`application/json` envelopes from Mistral — the deployment has been
+observed switching between the two formats.
+<!-- END:tts-posture -->
+
 <!-- BEGIN:module-ownership -->
 # Module ownership cheat sheet
 
