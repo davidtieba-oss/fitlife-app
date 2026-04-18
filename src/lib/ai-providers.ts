@@ -37,13 +37,6 @@ export const AI_MODELS: AiModelInfo[] = [
     provider: "anthropic",
   },
   {
-    id: "claude-opus-4-6",
-    name: "Opus 4.6",
-    desc: "Most capable",
-    costNote: "~$0.05/request",
-    provider: "anthropic",
-  },
-  {
     id: "mistral-small-latest",
     name: "Mistral Small 4",
     desc: "Fast & very cheap (EU)",

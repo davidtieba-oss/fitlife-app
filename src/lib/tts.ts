@@ -3,7 +3,6 @@
 
 import {
   addTtsUsage,
-  getAiSettings,
   type VoiceId,
 } from "./storage";
 
@@ -155,45 +154,37 @@ export function prepareTtsText(raw: string): string {
   return normalizeNumbersForSpeech(stripMarkdown(raw));
 }
 
-interface TtsResponse {
-  audio_data: string;
-  mime_type?: string;
-  chars?: number;
-}
-
 /** Call the /api/tts proxy and return a playable object URL. */
 export async function requestTtsAudio(
   text: string,
   voice: VoiceId,
-  language: string
+  // `language` is accepted for call-site compatibility but ignored —
+  // Voxtral derives language from the voice's metadata.
+  _language?: string
 ): Promise<{ url: string; chars: number; mime: string }> {
-  const { mistralApiKey } = getAiSettings();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (mistralApiKey) headers["x-mistral-key"] = mistralApiKey;
-
+  void _language;
   const res = await fetch("/api/tts", {
     method: "POST",
-    headers,
-    body: JSON.stringify({ text, voice, language }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice }),
   });
 
-  const data = (await res.json()) as TtsResponse & { error?: string };
   if (!res.ok) {
-    throw new Error(data.error || "TTS request failed");
+    let errMsg = `TTS request failed (${res.status})`;
+    try {
+      const data = (await res.json()) as { error?: string };
+      if (data.error) errMsg = data.error;
+    } catch {
+      // non-JSON error body; keep the generic message
+    }
+    throw new Error(errMsg);
   }
 
-  // Track usage client-side.
-  const chars = data.chars ?? text.length;
+  const chars = Number(res.headers.get("X-Tts-Chars")) || text.length;
   addTtsUsage(chars);
 
-  // Decode base64 per the task snippet.
-  const audioData = atob(data.audio_data);
-  const audioBuffer = new Uint8Array(audioData.length);
-  for (let i = 0; i < audioData.length; i++) {
-    audioBuffer[i] = audioData.charCodeAt(i);
-  }
-  const mime = data.mime_type || "audio/mpeg";
-  const blob = new Blob([audioBuffer], { type: mime });
+  const blob = await res.blob();
+  const mime = blob.type || "audio/mpeg";
   const url = URL.createObjectURL(blob);
   return { url, chars, mime };
 }

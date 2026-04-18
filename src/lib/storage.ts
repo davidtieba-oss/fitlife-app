@@ -617,7 +617,12 @@ export const AI_MODELS_FALLBACK: AiModelInfo[] = [
 const DEFAULT_AI_SETTINGS: AiSettings = { model: "claude-sonnet-4-6" };
 
 // --- Voice / TTS Settings (profile-scoped, keyed as coach_voice_{profileId}) ---
-export type VoiceId = "Jessica" | "Laura" | "Jordan" | "Marcus";
+// VoiceId is any real Voxtral preset id — the catalog is loaded at runtime
+// from /api/tts/voices, so we can't enumerate ids at compile time.
+// Historical note: we used to hardcode ["Jessica","Laura","Jordan","Marcus"]
+// here. Those names do not exist on Mistral's side and TTS fails with
+// `invalid_voice` (HTTP 404). See `tts-posture` in AGENTS.md.
+export type VoiceId = string;
 
 export interface VoiceOption {
   id: VoiceId;
@@ -626,12 +631,9 @@ export interface VoiceOption {
   gender: "female" | "male";
 }
 
-export const VOICE_OPTIONS: VoiceOption[] = [
-  { id: "Jessica", label: "Jessica", desc: "Female, energetic", gender: "female" },
-  { id: "Laura", label: "Laura", desc: "Female, calm", gender: "female" },
-  { id: "Jordan", label: "Jordan", desc: "Male, friendly", gender: "male" },
-  { id: "Marcus", label: "Marcus", desc: "Male, authoritative", gender: "male" },
-];
+// Kept as a last-resort fallback only. Real voice list comes from
+// /api/tts/voices. Do not rely on the ids below matching Mistral.
+export const VOICE_OPTIONS: VoiceOption[] = [];
 
 export interface VoiceSettings {
   enabled: boolean;
@@ -642,7 +644,9 @@ export interface VoiceSettings {
 
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   enabled: false,
-  voice: "Jessica",
+  // Empty means "not picked yet" — settings UI auto-selects the first
+  // voice from the fetched Mistral catalog on mount.
+  voice: "",
   autoPlay: false,
   language: "en",
 };

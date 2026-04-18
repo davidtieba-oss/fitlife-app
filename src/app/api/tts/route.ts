@@ -1,5 +1,6 @@
 // TTS proxy for Mistral Voxtral.
-// Accepts { text, voice, language } and returns { audio_data: base64Mp3 }.
+// Accepts { text, voice } and returns raw audio bytes (Content-Type: audio/mpeg).
+// The number of characters billed is returned in the X-Tts-Chars response header.
 
 export async function POST(request: Request) {
   const apiKey = process.env.MISTRAL_API_KEY;
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { text?: string; voice?: string; language?: string };
+  let body: { text?: string; voice?: string };
   try {
     body = await request.json();
   } catch {
@@ -19,7 +20,6 @@ export async function POST(request: Request) {
 
   const text = (body.text ?? "").trim();
   const voice = body.voice ?? "Jessica";
-  const language = body.language ?? "en";
 
   if (!text) {
     return Response.json({ error: "Missing required field: text" }, { status: 400 });
@@ -39,10 +39,11 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "voxtral-tts",
+        // Do NOT send `language` — Voxtral derives language from the voice
+        // metadata and rejects `language` as `extra_forbidden`.
+        model: "voxtral-mini-tts-2603",
         voice,
         input: text,
-        language,
         response_format: "mp3",
       }),
     });
@@ -64,16 +65,49 @@ export async function POST(request: Request) {
       );
     }
 
-    // Convert binary audio to base64.
-    const buf = new Uint8Array(await response.arrayBuffer());
-    let binary = "";
-    for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
-    const audio_data = btoa(binary);
+    // Mistral may return raw binary audio OR a JSON envelope depending on
+    // the deployment. Inspect content-type before deciding how to forward.
+    // Guessing wrong here silently mangles the body into garbage that the
+    // browser rejects with "no supported source was found".
+    const contentType = response.headers.get("content-type") ?? "";
 
-    return Response.json({
-      audio_data,
-      mime_type: "audio/mpeg",
-      chars: text.length,
+    if (contentType.includes("application/json")) {
+      const json = await response.json();
+      // Known shapes: { audio: base64 }, { audio_data }, OpenAI-style
+      // { data: [{ b64_json }] }.
+      const b64: string | undefined =
+        json?.audio ??
+        json?.audio_data ??
+        json?.data?.[0]?.b64_json ??
+        json?.data?.[0]?.audio;
+      if (!b64) {
+        return Response.json(
+          {
+            error: `TTS returned unexpected JSON: ${JSON.stringify(json).slice(0, 400)}`,
+          },
+          { status: 502 }
+        );
+      }
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      return new Response(bytes, {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Content-Length": String(bytes.byteLength),
+          "X-Tts-Chars": String(text.length),
+        },
+      });
+    }
+
+    // Binary audio path — pass bytes through directly with upstream mime.
+    const buf = new Uint8Array(await response.arrayBuffer());
+    return new Response(buf, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType || "audio/mpeg",
+        "Content-Length": String(buf.byteLength),
+        "X-Tts-Chars": String(text.length),
+      },
     });
   } catch (err) {
     return Response.json(
