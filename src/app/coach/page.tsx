@@ -11,8 +11,13 @@ import {
   Utensils,
   Settings,
   Bot,
+  Volume2,
+  Square,
+  Loader2,
 } from "lucide-react";
 import { askAIChat } from "@/lib/ai";
+import { prepareTtsText, requestTtsAudio } from "@/lib/tts";
+import { getTtsVoice } from "@/lib/tts-settings";
 import {
   getSettings,
   getMacroTargets,
@@ -313,9 +318,12 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
                 )}
               </div>
             </div>
-            {/* Smart action buttons for assistant messages */}
+            {/* Smart action buttons + speak for assistant messages */}
             {msg.role === "assistant" && (
-              <SmartActions content={msg.content} />
+              <div className="flex flex-wrap gap-2 mt-1.5 ml-1 items-center">
+                <SpeakButton text={msg.content} />
+                <SmartActions content={msg.content} />
+              </div>
             )}
           </div>
         ))}
@@ -542,7 +550,7 @@ function SmartActions({ content }: { content: string }) {
   if (!hasWorkout && !hasMeal) return null;
 
   return (
-    <div className="flex gap-2 mt-1.5 ml-1">
+    <>
       {hasWorkout && (
         <Link
           href="/workouts"
@@ -559,6 +567,87 @@ function SmartActions({ content }: { content: string }) {
           <Utensils size={10} /> Log Meal
         </Link>
       )}
-    </div>
+    </>
+  );
+}
+
+function SpeakButton({ text }: { text: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "playing" | "error">("idle");
+  const [errMsg, setErrMsg] = useState("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const urlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    };
+  }, []);
+
+  async function handlePlay() {
+    if (state === "playing") {
+      audioRef.current?.pause();
+      audioRef.current = null;
+      setState("idle");
+      return;
+    }
+    setState("loading");
+    setErrMsg("");
+    try {
+      const voice = getTtsVoice();
+      if (!voice) {
+        setErrMsg("Pick a voice in Settings");
+        setState("error");
+        return;
+      }
+      const prepared = prepareTtsText(text);
+      const { url } = await requestTtsAudio(prepared, voice);
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = url;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        setState("idle");
+        audioRef.current = null;
+      };
+      audio.onerror = () => {
+        setErrMsg("Playback failed");
+        setState("error");
+        audioRef.current = null;
+      };
+      await audio.play();
+      setState("playing");
+    } catch (err) {
+      setErrMsg(err instanceof Error ? err.message : "TTS failed");
+      setState("error");
+    }
+  }
+
+  const busy = state === "loading";
+  const playing = state === "playing";
+  const errored = state === "error";
+
+  return (
+    <button
+      onClick={handlePlay}
+      disabled={busy}
+      title={errored ? errMsg : playing ? "Stop" : "Read aloud"}
+      className={`flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg transition ${
+        errored
+          ? "text-red-400 bg-red-500/10 hover:bg-red-500/20"
+          : playing
+          ? "text-violet-300 bg-violet-600/20"
+          : "text-violet-400 hover:text-violet-300 bg-violet-600/10 hover:bg-violet-600/20"
+      } disabled:opacity-50`}
+    >
+      {busy ? (
+        <Loader2 size={10} className="animate-spin" />
+      ) : playing ? (
+        <Square size={10} />
+      ) : (
+        <Volume2 size={10} />
+      )}
+      {playing ? "Stop" : errored ? errMsg || "Retry" : "Listen"}
+    </button>
   );
 }

@@ -28,6 +28,7 @@ import {
 import { askAI } from "@/lib/ai";
 import { useProfile } from "@/lib/ProfileContext";
 import Toast from "@/components/Toast";
+import VoiceSettingsCard from "@/components/VoiceSettingsCard";
 import {
   Trash2,
   Plus,
@@ -767,6 +768,8 @@ export default function SettingsPage() {
           <p className="text-[10px] text-green-400">Connection successful!</p>
         )}
       </div>
+
+      <VoiceSettingsCard />
 
       <div className="bg-slate-800 rounded-2xl p-4">
         <h2 className="text-sm font-semibold text-slate-300 mb-2">About</h2>
