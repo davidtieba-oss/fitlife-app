@@ -18,7 +18,6 @@ import {
   saveReminders,
   getVoiceSettings,
   saveVoiceSettings,
-  VOICE_OPTIONS,
   getTtsUsage,
   ttsCostForChars,
   currentTtsMonth,
@@ -115,7 +114,7 @@ export default function SettingsPage() {
   // Voice (TTS) settings — profile-scoped.
   const [voiceSettings, setVoiceSettingsState] = useState<VoiceSettings>({
     enabled: false,
-    voice: "Jessica",
+    voice: "",
     autoPlay: false,
     language: "en",
   });
@@ -125,6 +124,18 @@ export default function SettingsPage() {
   const [ttsMonthlyChars, setTtsMonthlyChars] = useState(0);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+
+  // Voice catalog — fetched from Mistral at runtime. Hardcoded voice ids
+  // don't match any real preset, so the list has to be discovered.
+  interface CatalogVoice {
+    id: string;
+    name?: string;
+    description?: string;
+    languages?: string[];
+  }
+  const [voiceCatalog, setVoiceCatalog] = useState<CatalogVoice[]>([]);
+  const [voiceCatalogError, setVoiceCatalogError] = useState("");
+  const [voiceCatalogLoading, setVoiceCatalogLoading] = useState(false);
 
   // Voice input (transcription) settings — profile-scoped.
   const [voiceInputSettings, setVoiceInputSettings] = useState<VoiceInputSettings>(
@@ -144,6 +155,38 @@ export default function SettingsPage() {
     }
     setVoiceSettingsState(getVoiceSettings(activeId));
     setTtsMonthlyChars(getTtsUsage());
+    // Pull the real voice catalog from Mistral so the picker isn't stuck
+    // on fabricated ids.
+    setVoiceCatalogLoading(true);
+    setVoiceCatalogError("");
+    fetch("/api/tts/voices")
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Voices lookup failed (${res.status})`);
+        // Mistral returns `{ items: [...] }`. Keep fallbacks in case the
+        // deployment shifts shape.
+        const items: CatalogVoice[] = Array.isArray(data.items)
+          ? data.items
+          : Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.voices)
+          ? data.voices
+          : [];
+        setVoiceCatalog(items);
+        // If the saved voice isn't in the fetched catalog (e.g. old
+        // hardcoded "Jessica"), migrate to the first real voice.
+        if (items.length > 0) {
+          const saved = getVoiceSettings(activeId);
+          const valid = items.some((v) => v.id === saved.voice);
+          if (!valid) {
+            const next = { ...saved, voice: items[0].id };
+            setVoiceSettingsState(next);
+            saveVoiceSettings(activeId, next);
+          }
+        }
+      })
+      .catch((err: Error) => setVoiceCatalogError(err.message))
+      .finally(() => setVoiceCatalogLoading(false));
     setVoiceSupported(isVoiceInputSupported());
     if (activeId) {
       setVoiceInputSettings(getVoiceInputSettings(activeId));
@@ -766,15 +809,30 @@ export default function SettingsPage() {
           />
         </label>
 
-        {/* Voice selection */}
+        {/* Voice selection — pulled live from Mistral /v1/audio/voices */}
         <div>
           <label className="text-xs text-gray-500 dark:text-slate-400 font-medium">
             Voice Selection
           </label>
+          {voiceCatalogLoading && (
+            <p className="text-[11px] text-slate-500 mt-2">Loading voices…</p>
+          )}
+          {voiceCatalogError && (
+            <p className="text-[11px] text-red-400 mt-2">
+              Voice catalog unavailable — {voiceCatalogError}
+            </p>
+          )}
+          {!voiceCatalogLoading && !voiceCatalogError && voiceCatalog.length === 0 && (
+            <p className="text-[11px] text-slate-500 mt-2">
+              No voices returned by Mistral.
+            </p>
+          )}
           <div className="space-y-1.5 mt-1">
-            {VOICE_OPTIONS.map((v) => {
+            {voiceCatalog.map((v) => {
               const selected = voiceSettings.voice === v.id;
               const isPlaying = previewingVoice === v.id;
+              const displayName = v.name ?? v.id;
+              const desc = v.description ?? v.languages?.join(", ") ?? v.id;
               return (
                 <div
                   key={v.id}
@@ -791,8 +849,8 @@ export default function SettingsPage() {
                     }
                     className="flex-1 text-left min-w-0"
                   >
-                    <p className="text-xs font-medium text-gray-700 dark:text-white">{v.label}</p>
-                    <p className="text-[10px] text-gray-500 dark:text-slate-400">{v.desc}</p>
+                    <p className="text-xs font-medium text-gray-700 dark:text-white">{displayName}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400 truncate">{desc}</p>
                   </button>
                   <button
                     type="button"
