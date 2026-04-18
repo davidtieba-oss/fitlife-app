@@ -83,12 +83,10 @@ export default function SettingsPage() {
   const [aiModels, setAiModels] = useState<AiModelInfo[]>(AI_MODELS_FALLBACK);
   const [modelsLoading, setModelsLoading] = useState(false);
 
-  async function fetchModels(apiKey: string) {
+  async function fetchModels() {
     setModelsLoading(true);
     try {
-      const headers: Record<string, string> = {};
-      if (apiKey) headers["x-api-key"] = apiKey;
-      const res = await fetch("/api/models", { headers });
+      const res = await fetch("/api/models");
       if (!res.ok) throw new Error("Failed to fetch models");
       const data = await res.json();
       const allModels: Array<{ id: string; display_name?: string; capabilities?: { image_input?: boolean } }> =
@@ -129,10 +127,11 @@ export default function SettingsPage() {
     setSettings(getSettings());
     setProfiles(getProfiles());
     setAiSettingsState(getAiSettings());
-    // Load cached models or fallback
     const cached = getCachedModels();
     if (cached && cached.length > 0) {
       setAiModels(cached);
+    } else {
+      fetchModels();
     }
   }, [activeId]);
 
@@ -656,26 +655,13 @@ export default function SettingsPage() {
           <h2 className="text-sm font-semibold text-slate-300">AI Settings</h2>
         </div>
 
-        {/* API Key */}
-        <div>
-          <label className="text-xs text-slate-400 font-medium">
-            Anthropic API Key
-          </label>
-          <input
-            type="password"
-            value={aiSettings.apiKey}
-            onChange={(e) =>
-              setAiSettingsState({ ...aiSettings, apiKey: e.target.value })
-            }
-            placeholder="sk-ant-..."
-            className="w-full mt-1 bg-slate-700 rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-violet-500 font-mono"
-          />
-          <p className="text-[10px] text-slate-500 mt-1">
-            Get your key at{" "}
-            <span className="text-violet-400">console.anthropic.com</span>
-            {" · "}Stored locally on your device
-          </p>
-        </div>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          API keys are configured server-side via{" "}
+          <code className="text-[10px] bg-slate-700 px-1 py-0.5 rounded">ANTHROPIC_API_KEY</code>
+          {" "}and{" "}
+          <code className="text-[10px] bg-slate-700 px-1 py-0.5 rounded">MISTRAL_API_KEY</code>
+          . Nothing to enter here.
+        </p>
 
         {/* Model Selector */}
         <div>
@@ -683,7 +669,7 @@ export default function SettingsPage() {
             <label className="text-xs text-slate-400 font-medium">Model</label>
             <button
               type="button"
-              onClick={() => fetchModels(aiSettings.apiKey)}
+              onClick={() => fetchModels()}
               disabled={modelsLoading}
               className="flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-50 transition"
             >
@@ -724,13 +710,11 @@ export default function SettingsPage() {
           <button
             onClick={() => {
               saveAiSettings(aiSettings);
-              setToast("AI settings saved!");
-              // Auto-fetch models when key is saved
-              if (aiSettings.apiKey) fetchModels(aiSettings.apiKey);
+              setToast("Model saved!");
             }}
             className="flex-1 bg-violet-600 hover:bg-violet-500 text-white py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
           >
-            <Sparkles size={13} /> Save AI Settings
+            <Sparkles size={13} /> Save Model
           </button>
           <button
             onClick={async () => {

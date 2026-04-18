@@ -15,7 +15,7 @@ import {
   Square,
   Loader2,
 } from "lucide-react";
-import { askAIChat } from "@/lib/ai";
+import { askAIChat, getAiStatus, type AiStatus } from "@/lib/ai";
 import { prepareTtsText, requestTtsAudio } from "@/lib/tts";
 import { getTtsVoice } from "@/lib/tts-settings";
 import {
@@ -65,6 +65,7 @@ export default function CoachPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -75,6 +76,7 @@ export default function CoachPage() {
   useEffect(() => {
     setMounted(true);
     loadChat();
+    getAiStatus().then(setAiStatus);
   }, [loadChat]);
 
   useEffect(() => {
@@ -90,12 +92,11 @@ export default function CoachPage() {
   }
 
   const aiSettings = getAiSettings();
-  const hasKey = !!aiSettings.apiKey || !!process.env.NEXT_PUBLIC_HAS_API_KEY;
   const models = getCachedModels() ?? AI_MODELS_FALLBACK;
   const modelName = models.find((m) => m.id === aiSettings.model)?.name ?? aiSettings.model;
 
-  // No API key configured
-  if (!hasKey) {
+  // Server explicitly reported that the Anthropic key isn't configured.
+  if (aiStatus && !aiStatus.anthropic) {
     return (
       <div className="space-y-4">
         <h1 className="text-xl font-bold">AI Coach</h1>
@@ -104,16 +105,17 @@ export default function CoachPage() {
             <Sparkles size={28} className="text-violet-400" />
           </div>
           <div>
-            <p className="text-sm font-medium text-white">Set up your AI key</p>
+            <p className="text-sm font-medium text-white">AI Coach not configured</p>
             <p className="text-xs text-slate-400 mt-1">
-              To chat with your fitness coach, add your Anthropic API key in Settings.
+              Set <code className="bg-slate-700 px-1 py-0.5 rounded text-[10px]">ANTHROPIC_API_KEY</code>{" "}
+              in your Vercel project environment to enable the coach.
             </p>
           </div>
           <Link
             href="/settings"
             className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl text-xs font-semibold transition"
           >
-            <Settings size={14} /> Go to AI Settings
+            <Settings size={14} /> Open Settings
           </Link>
         </div>
       </div>
@@ -321,7 +323,7 @@ Based on this data, provide personalized, actionable advice. Be encouraging but 
             {/* Smart action buttons + speak for assistant messages */}
             {msg.role === "assistant" && (
               <div className="flex flex-wrap gap-2 mt-1.5 ml-1 items-center">
-                <SpeakButton text={msg.content} />
+                {aiStatus?.mistral && <SpeakButton text={msg.content} />}
                 <SmartActions content={msg.content} />
               </div>
             )}
