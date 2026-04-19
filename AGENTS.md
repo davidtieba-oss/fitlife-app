@@ -58,6 +58,51 @@ If the build is going to fail, you'd rather know now than wait for the
 Vercel webhook.
 <!-- END:pre-push-build-gate -->
 
+<!-- BEGIN:branch-base-check -->
+# Verify branch base before editing
+
+A fresh agent session can start on a branch that was forked from a
+stale `main`. Edits then land against old contracts, and the PR looks
+"additive" but silently regresses shipped work. This has bitten us
+twice — the original coach-first IA pivot (PR #10, closed for
+divergence) and the API hardening branch (PR #14, which had to be
+rebased because it dropped the PR #11 TTS posture and several response
+shapes).
+
+Before any code edit on an existing branch:
+
+1. `git fetch origin`
+2. `git log --oneline origin/main -10` — confirm the expected merged
+   PRs are present (check commit subjects against `feature-map`).
+3. `git merge-base --is-ancestor origin/main HEAD` — if this exits
+   non-zero, the branch is **behind** `main`. Rebase BEFORE editing.
+   Do not layer new commits on a stale base.
+
+In the PR body, state the base SHA at PR-creation time so reviewers
+can verify it matches current `origin/main`.
+<!-- END:branch-base-check -->
+
+<!-- BEGIN:prompt-writer-preflight -->
+# Writing prompts for new sessions
+
+When the user asks for a prompt to continue work in a new Claude Code
+session ("write me a prompt for…", "give me a prompt I can paste"),
+always include a top-of-prompt pre-flight section:
+
+```
+Pre-flight (run before any edit):
+1. `git fetch origin`
+2. `git log --oneline origin/main -10`   — confirm expected merged PRs
+3. `git merge-base --is-ancestor origin/main HEAD`
+     — if non-zero, rebase onto origin/main before editing
+```
+
+This is non-negotiable. New sessions have no memory of which PRs
+merged since the branch was created, so they cannot infer base
+staleness from conversational context. Including the pre-flight in
+the prompt closes that gap.
+<!-- END:prompt-writer-preflight -->
+
 <!-- BEGIN:storage-module-policy -->
 # Don't extend `src/lib/storage.ts` further
 
