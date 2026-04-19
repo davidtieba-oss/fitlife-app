@@ -1,4 +1,16 @@
+import {
+  guardRequest,
+  guardErrResponse,
+  readJsonBody,
+  MAX_TOKENS_CAP,
+  MAX_TEXT_CHARS,
+} from "@/lib/api-guard";
+
 export async function POST(request: Request) {
+  const guard = await guardRequest(request);
+  if (guard) return guard;
+
+  // Server-env only — clients must NOT supply their own key.
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json(
@@ -14,9 +26,9 @@ export async function POST(request: Request) {
     max_tokens?: number;
   };
   try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
+    body = (await readJsonBody(request)) as typeof body;
+  } catch (e) {
+    return guardErrResponse(e);
   }
 
   if (!body.model || !body.messages || !Array.isArray(body.messages)) {
@@ -25,6 +37,12 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  if (JSON.stringify(body.messages).length > MAX_TEXT_CHARS) {
+    return Response.json({ error: "Message content too large" }, { status: 413 });
+  }
+
+  const maxTokens = Math.min(body.max_tokens ?? 1024, MAX_TOKENS_CAP);
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -36,7 +54,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         model: body.model,
-        max_tokens: body.max_tokens ?? 1024,
+        max_tokens: maxTokens,
         system: body.system,
         messages: body.messages,
       }),

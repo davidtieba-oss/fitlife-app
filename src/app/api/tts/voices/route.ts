@@ -1,10 +1,19 @@
 // Proxy for Mistral's GET /v1/audio/voices endpoint. Returns the raw
 // paginated payload so the client can render the list dynamically.
-// Required because the hardcoded voice ids we'd been shipping
-// (Jessica/Laura/Jordan/Marcus) do not match any real Voxtral preset
-// and Mistral rejects the TTS call with HTTP 404 `invalid_voice`.
+//
+// AGENTS.md "tts-posture" rule: do NOT hardcode voice ids. Hardcoded
+// fabrications (Jessica/Laura/Jordan/Marcus, af_bella, cheerful_female,
+// etc.) all fail with HTTP 404 invalid_voice when forwarded to TTS. The
+// real catalog MUST come from this endpoint at runtime. Response shape
+// from Mistral is { items: [...] } — keep `data` / `voices` as defensive
+// fallbacks on the client.
+
+import { guardRequest } from "@/lib/api-guard";
 
 export async function GET(request: Request) {
+  const guard = await guardRequest(request);
+  if (guard) return guard;
+
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
     return Response.json(
@@ -20,9 +29,7 @@ export async function GET(request: Request) {
   try {
     const response = await fetch(
       `https://api.mistral.ai/v1/audio/voices?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`,
-      {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      }
+      { headers: { Authorization: `Bearer ${apiKey}` } }
     );
 
     if (!response.ok) {
@@ -38,9 +45,7 @@ export async function GET(request: Request) {
   } catch (err) {
     return Response.json(
       {
-        error: `Voices request failed: ${
-          err instanceof Error ? err.message : "Unknown error"
-        }`,
+        error: `Voices request failed: ${err instanceof Error ? err.message : "Unknown error"}`,
       },
       { status: 500 }
     );
